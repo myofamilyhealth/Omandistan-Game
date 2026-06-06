@@ -7,6 +7,8 @@
  *   - Perfect competition (farms / food market)   -> price-taking, profit signal
  *   - Monopoly (healthcare)                        -> high price, restricted Q, DWL
  *   - Price elasticity of demand                   -> Qd = D0 * (P/Pref)^e
+ *   - Human capital -> productivity (PPC shift)    -> education raises output
+ *   - International trade (ports/airports)         -> exports, imports, tourism
  *   - Labor market & unemployment
  *   - GDP, inflation (price index), taxation
  *   - Immigration driven by national happiness
@@ -15,31 +17,28 @@ window.Economy = (function () {
   "use strict";
   const C = window.CONFIG;
 
-  // Quantity demanded along a constant-elasticity demand curve.
-  // D0 is quantity demanded at the reference price Pref.
   function quantityDemanded(D0, price, Pref, elasticity) {
     if (D0 <= 0) return 0;
     return D0 * Math.pow(price / Pref, elasticity);
   }
 
-  // Market-clearing price for a fixed short-run supply Qs (perfect competition).
+  // Market-clearing price for a fixed short-run supply Qs.
   // Solve D0 * (P/Pref)^e = Qs  ->  P = Pref * (Qs/D0)^(1/e)
   function clearingPrice(Qs, D0, Pref, elasticity) {
-    if (D0 <= 0) return Pref;               // no demand -> price rests at ref
-    if (Qs <= 0) return Pref * 4;           // no supply -> scarcity ceiling
+    if (D0 <= 0) return Pref;
+    if (Qs <= 0) return Pref * 4;
     const ratio = Qs / D0;
     let p = Pref * Math.pow(ratio, 1 / elasticity);
-    // keep prices in a sane band so the sim stays readable
     return clamp(p, Pref * 0.4, Pref * 4);
   }
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-  // Tally up everything the placed buildings provide.
   function tallyBuildings(state) {
     const t = {
       housing: 0, foodOutput: 0, goodsOutput: 0, healthCapacity: 0,
       jobs: 0, amenity: 0, lovePerTick: 0, upkeep: 0,
+      humanCapital: 0, tradeCapacity: 0, airCapacity: 0,
       farms: 0, hospitals: 0, counts: {},
     };
     for (const b of state.buildings) {
@@ -54,64 +53,97 @@ window.Economy = (function () {
       t.amenity += def.amenity || 0;
       t.lovePerTick += def.lovePerTick || 0;
       t.upkeep += def.upkeep || 0;
+      t.humanCapital += def.humanCapital || 0;
+      t.tradeCapacity += def.tradeCapacity || 0;
+      if (def.tourism) t.airCapacity += def.tradeCapacity || 0;
       if (b.type === "farm") t.farms++;
       if (b.type === "hospital") t.hospitals++;
     }
     return t;
   }
 
-  // --- The big one: advance the economy by one month -----------------------
+  // --- Advance the economy by one month ------------------------------------
   function tick(state) {
     const E = C.ECON;
     const pop = state.population;
     const t = tallyBuildings(state);
 
     // ===================================================================
-    // FOOD MARKET — PERFECT COMPETITION (necessity, inelastic demand)
+    // HUMAN CAPITAL -> PRODUCTIVITY (shifts the PPC outward)
     // ===================================================================
-    const foodD0 = pop * E.food.perCapita;                 // demand @ ref price
-    const foodQs = t.foodOutput;                           // short-run supply
-    // With fixed short-run supply the market clears at this price; cleared
-    // quantity is min(Qs, Qd@price).
-    const foodPriceCleared = clearingPrice(foodQs, foodD0, E.food.refPrice, E.food.elasticity);
-    const foodSold = Math.min(foodQs, quantityDemanded(foodD0, foodPriceCleared, E.food.refPrice, E.food.elasticity));
-    const foodAccess = foodD0 <= 0 ? 1 : clamp(foodSold / foodD0, 0, 1);
-    // Farm economics: revenue vs. wage cost. Perfect competition pushes
-    // economic profit toward zero in the long run (shown as a signal).
-    const farmRevenue = foodSold * foodPriceCleared;
+    const HC = E.humanCapital;
+    const hcPerCapita = pop <= 0 ? 0 : t.humanCapital / pop;
+    const hcUtil = clamp(hcPerCapita / HC.perCapitaForFullBonus, 0, 1);
+    const productivity = 1 + HC.maxOutputBonus * hcUtil;   // e.g. 1.00 .. 1.75
+
+    // Effective (productivity-boosted) outputs — this is the PPC expanding.
+    const foodOutputEff = t.foodOutput * productivity;
+    const goodsOutputEff = t.goodsOutput * productivity;
+    const healthCapEff = t.healthCapacity * productivity;
+
+    // ===================================================================
+    // FOOD MARKET — PERFECT COMPETITION  (+ trade)
+    // ===================================================================
+    const foodD0 = pop * E.food.perCapita;
+    let foodImports = 0, foodExports = 0;
+    let foodSupply = foodOutputEff;
+    // Trade: import to cover a shortage, export the surplus (gains from trade).
+    let capLeft = t.tradeCapacity;
+    if (foodSupply < foodD0 && capLeft > 0) {
+      foodImports = Math.min(foodD0 - foodSupply, capLeft);
+      foodSupply += foodImports; capLeft -= foodImports;
+    } else if (foodSupply > foodD0 && capLeft > 0) {
+      foodExports = Math.min(foodSupply - foodD0, capLeft);
+      capLeft -= foodExports;
+    }
+    const foodPrice = clearingPrice(foodSupply, foodD0, E.food.refPrice, E.food.elasticity);
+    const foodConsumed = Math.min(foodSupply, quantityDemanded(foodD0, foodPrice, E.food.refPrice, E.food.elasticity));
+    const foodAccess = foodD0 <= 0 ? 1 : clamp(foodConsumed / foodD0, 0, 1);
+    const farmRevenue = Math.min(foodOutputEff, foodConsumed) * foodPrice;
     const farmWages = t.farms * C.BUILDINGS.farm.jobs * E.food.farmWage;
     const farmProfit = farmRevenue - farmWages - t.farms * C.BUILDINGS.farm.upkeep;
 
     // ===================================================================
-    // HEALTHCARE — MONOPOLY (necessity, very inelastic demand)
+    // HEALTHCARE — MONOPOLY  (not traded; a local service)
     // ===================================================================
     const healthD0 = pop * E.health.perCapita;
-    let healthPrice, healthRegulated = state.policies.publicHealth;
-    if (healthRegulated) {
-      healthPrice = E.health.publicOptionPrice;            // priced near cost
-    } else {
-      healthPrice = E.health.refPrice * E.health.monopolyMarkup; // monopoly markup
-    }
+    const healthRegulated = state.policies.publicHealth;
+    const healthPrice = healthRegulated ? E.health.publicOptionPrice
+                                        : E.health.refPrice * E.health.monopolyMarkup;
     const healthQd = quantityDemanded(healthD0, healthPrice, E.health.refPrice, E.health.elasticity);
-    const healthServed = Math.min(t.healthCapacity, healthQd);
+    const healthServed = Math.min(healthCapEff, healthQd);
     const healthAccess = healthD0 <= 0 ? 1 : clamp(healthServed / healthD0, 0, 1);
-    // Deadweight loss proxy: people who would be served at marginal-cost price
-    // but are priced out by the monopoly.
-    const healthCompetitiveQ = Math.min(t.healthCapacity,
+    const healthCompetitiveQ = Math.min(healthCapEff,
       quantityDemanded(healthD0, E.health.marginalCost, E.health.refPrice, E.health.elasticity));
     const healthDWL = healthRegulated ? 0 : Math.max(0, healthCompetitiveQ - healthServed);
     const healthRevenue = healthServed * healthPrice;
-    const healthCost = healthServed * E.health.marginalCost;
-    // public option is subsidised when price < marginal cost
     const healthSubsidy = healthRegulated ? Math.max(0, (E.health.marginalCost - healthPrice) * healthServed) : 0;
 
     // ===================================================================
-    // CONSUMER GOODS — luxury, ELASTIC demand (contrast with food)
+    // CONSUMER GOODS — elastic luxury  (+ trade)
     // ===================================================================
     const goodsD0 = pop * E.goods.perCapita;
-    const goodsQs = t.goodsOutput;
-    const goodsPrice = clearingPrice(goodsQs, goodsD0, E.goods.refPrice, E.goods.elasticity);
-    const goodsSold = Math.min(goodsQs, quantityDemanded(goodsD0, goodsPrice, E.goods.refPrice, E.goods.elasticity));
+    let goodsImports = 0, goodsExports = 0;
+    let goodsSupply = goodsOutputEff;
+    if (goodsSupply < goodsD0 && capLeft > 0) {
+      goodsImports = Math.min(goodsD0 - goodsSupply, capLeft);
+      goodsSupply += goodsImports; capLeft -= goodsImports;
+    } else if (goodsSupply > goodsD0 && capLeft > 0) {
+      goodsExports = Math.min(goodsSupply - goodsD0, capLeft);
+      capLeft -= goodsExports;
+    }
+    const goodsPrice = clearingPrice(goodsSupply, goodsD0, E.goods.refPrice, E.goods.elasticity);
+    const goodsSold = Math.min(goodsSupply, quantityDemanded(goodsD0, goodsPrice, E.goods.refPrice, E.goods.elasticity));
+
+    // ===================================================================
+    // TRADE accounting (exports earn money, imports cost money, tourism)
+    // ===================================================================
+    const exportIncome = (foodExports + goodsExports) * E.trade.exportMargin;
+    const importCost = (foodImports + goodsImports) * E.trade.importPrice;
+    const tourismIncome = t.airCapacity > 0
+      ? (t.airCapacity * E.trade.airTourism * (state.happiness / 100))
+      : 0;
+    const tradeNet = exportIncome - importCost + tourismIncome;
 
     // ===================================================================
     // LABOR MARKET & UNEMPLOYMENT
@@ -124,8 +156,8 @@ window.Economy = (function () {
     // ===================================================================
     // GDP & INFLATION
     // ===================================================================
-    const gdp = farmRevenue + healthRevenue + goodsSold * goodsPrice;
-    const priceIndex = (foodPriceCleared / E.food.refPrice) * 0.45
+    const gdp = farmRevenue + healthRevenue + goodsSold * goodsPrice + exportIncome + tourismIncome;
+    const priceIndex = (foodPrice / E.food.refPrice) * 0.45
                      + (healthPrice / E.health.refPrice) * 0.25
                      + (goodsPrice / E.goods.refPrice) * 0.30;
     const inflation = state.lastPriceIndex ? (priceIndex - state.lastPriceIndex) / state.lastPriceIndex : 0;
@@ -144,23 +176,23 @@ window.Economy = (function () {
     const employmentScore = laborForce <= 0 ? 1 : (1 - unemployment);
     const priceStability = clamp(1 - Math.abs(inflation) * 4, 0, 1);
     let happiness = 100 * (
-      foodAccess * 0.26 +
-      healthAccess * 0.20 +
-      housingRatio * 0.16 +
-      employmentScore * 0.18 +
-      amenityRatio * 0.10 +
-      priceStability * 0.10
+      foodAccess * 0.24 +
+      healthAccess * 0.18 +
+      housingRatio * 0.15 +
+      employmentScore * 0.16 +
+      amenityRatio * 0.09 +
+      priceStability * 0.08 +
+      hcUtil * HC.happinessBonus            // educated nations are happier
     );
-    // When the country is nearly empty, keep morale buoyant so it can bootstrap.
-    if (pop < 12) happiness = Math.max(happiness, 64);
+    if (pop < 12) happiness = Math.max(happiness, 64);  // bootstrap morale
     happiness = clamp(happiness, 0, 100);
 
     // ===================================================================
-    // IMMIGRATION / EMIGRATION (the country grows as it improves)
+    // IMMIGRATION / EMIGRATION
     // ===================================================================
     let popChange = 0;
     if (happiness >= 55 && housingFree > 0) {
-      const pull = (happiness - 55) / 45;                  // 0..1
+      const pull = (happiness - 55) / 45;
       popChange = Math.min(housingFree, Math.ceil((2 + pop * 0.04) * pull));
     } else if (happiness < 38 && pop > 0) {
       const push = (38 - happiness) / 38;
@@ -168,22 +200,26 @@ window.Economy = (function () {
     }
 
     // ===================================================================
-    // TREASURY: tax revenue minus upkeep and healthcare subsidy
+    // TREASURY
     // ===================================================================
     const taxRevenue = gdp * E.taxRate;
-    const netTreasury = taxRevenue - t.upkeep - healthSubsidy;
+    const netTreasury = taxRevenue + tradeNet - t.upkeep - healthSubsidy;
 
     return {
       tally: t,
-      food: { price: foodPriceCleared, supply: foodQs, demand: foodD0, sold: foodSold, access: foodAccess, farmProfit },
+      productivity, humanCapital: t.humanCapital, hcUtil,
+      food: { price: foodPrice, supply: foodOutputEff, demand: foodD0, sold: foodConsumed,
+              access: foodAccess, farmProfit, imports: foodImports, exports: foodExports },
       health: { price: healthPrice, served: healthServed, demand: healthD0, access: healthAccess,
                 regulated: healthRegulated, dwl: healthDWL, subsidy: healthSubsidy },
-      goods: { price: goodsPrice, supply: goodsQs, sold: goodsSold, demand: goodsD0 },
+      goods: { price: goodsPrice, supply: goodsOutputEff, sold: goodsSold, demand: goodsD0,
+               imports: goodsImports, exports: goodsExports },
+      trade: { capacity: t.tradeCapacity, exportIncome, importCost, tourismIncome, net: tradeNet },
       labor: { force: laborForce, jobs, employed, unemployment },
       gdp, priceIndex, inflation,
       housing, housingFree, housingRatio,
       happiness, popChange,
-      treasury: { tax: taxRevenue, upkeep: t.upkeep, subsidy: healthSubsidy, net: netTreasury },
+      treasury: { tax: taxRevenue, upkeep: t.upkeep, subsidy: healthSubsidy, trade: tradeNet, net: netTreasury },
       lovePerTick: t.lovePerTick,
     };
   }

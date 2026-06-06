@@ -48,14 +48,28 @@
   // =========================================================================
   // BUILD / OMAND APPROVAL
   // =========================================================================
+  function isWater(cx, cy) {
+    return cx <= 0 || cy <= 0 || cx >= C.MAP.cols - 1 || cy >= C.MAP.rows - 1;
+  }
+  function touchesWater(cx, cy) {
+    return isWater(cx - 1, cy) || isWater(cx + 1, cy) || isWater(cx, cy - 1) || isWater(cx, cy + 1);
+  }
+
   function tryPlace(cx, cy) {
     if (!selectedType) return;
-    if (cx < 1 || cy < 1 || cx >= C.MAP.cols - 1 || cy >= C.MAP.rows - 1) {
-      log("That's coastline — you can't build on the water.", "warn");
+    if (cx === C.CASTLE.cx && cy === C.CASTLE.cy) {
+      log("That's the royal castle — the Omands live there! 🏰", "warn"); return;
+    }
+    if (isWater(cx, cy)) {
+      log("That's the sea — you can't build on open water.", "warn");
       return;
     }
     if (state.grid[cy][cx]) { log("That tile is already occupied.", "warn"); return; }
     const def = C.BUILDINGS[selectedType];
+    if (def.requiresWater && !touchesWater(cx, cy)) {
+      log(`A ${def.name} must be built on the coast — place it next to the water. 🌊`, "warn");
+      return;
+    }
     if (state.treasury < def.cost) {
       log(`Not enough money for a ${def.name} ($${def.cost} needed).`, "warn");
       return;
@@ -193,6 +207,7 @@
     setChip("c-pop", Math.round(state.population).toLocaleString());
     setChip("c-happy", Math.round(state.happiness) + " / 100");
     setChip("c-gdp", money(s.gdp));
+    setChip("c-prod", "×" + s.productivity.toFixed(2));
     setChip("c-unemp", pct(s.labor.unemployment));
     setChip("c-date", `${MONTHS[(state.month) % 12]} Yr ${1 + Math.floor(state.month / 12)}`);
 
@@ -212,6 +227,16 @@
       </div>
       <div class="dgroup"><h4>🛒 Goods — Elastic Luxury</h4>
         <div>Price: <b>$${s.goods.price.toFixed(2)}</b> · Sold ${Math.round(s.goods.sold)}/${Math.round(s.goods.supply)}</div>
+      </div>
+      <div class="dgroup"><h4>🎓 Human Capital — PPC</h4>
+        <div>Productivity: <b class="${s.productivity>1.01?'pos':''}">×${s.productivity.toFixed(2)}</b> <span class="hint">(educated workers → outward PPC)</span></div>
+        <div>Education points ${Math.round(s.humanCapital)} · coverage ${pct(s.hcUtil)}</div>
+      </div>
+      <div class="dgroup"><h4>🚢 Global Trade</h4>
+        ${s.trade.capacity > 0
+          ? `<div>Capacity ${Math.round(s.trade.capacity)}/mo · Exports +${money(s.trade.exportIncome)} · Imports −${money(s.trade.importCost)}</div>
+             <div>Tourism +${money(s.trade.tourismIncome)}/mo · Net trade <b class="${s.trade.net>=0?'pos':'neg'}">${money(s.trade.net)}</b></div>`
+          : `<div class="hint">Build a Seaport 🚢 or Airport ✈️ to open global trade.</div>`}
       </div>
       <div class="dgroup"><h4>📊 Macro</h4>
         <div>Inflation: <b class="${Math.abs(s.inflation)<0.03?'pos':'neg'}">${(s.inflation*100).toFixed(1)}%</b> · Tax: ${money(s.treasury.tax)}/mo</div>
@@ -329,6 +354,45 @@
   }
 
   // =========================================================================
+  // TUTORIAL (step-through, shown on first open; reopen via Help)
+  // =========================================================================
+  let tutStep = 0;
+  function openTutorial(step) {
+    tutStep = step || 0;
+    setSpeed(0);
+    renderTutorial();
+    $("welcome").classList.add("show");
+  }
+  function renderTutorial() {
+    const steps = C.TUTORIAL;
+    const s = steps[tutStep];
+    const last = tutStep === steps.length - 1;
+    const dots = steps.map((_, i) => `<span class="dot ${i === tutStep ? "on" : ""}"></span>`).join("");
+    $("welcome").innerHTML = `
+      <div class="card tutcard">
+        <div class="omand-faces" style="font-size:34px;text-align:center">👑👸</div>
+        <h2>${s.title}</h2>
+        <p>${s.body}</p>
+        <div class="tutdots">${dots}</div>
+        <div class="row">
+          ${tutStep > 0 ? '<button id="tutBack" class="btn">◀ Back</button>' : '<span></span>'}
+          <button id="tutNext" class="btn primary">${last ? "Start building 🚜" : "Next ▶"}</button>
+        </div>
+        ${!last ? '<button id="tutSkip" class="tutskip">Skip tutorial</button>' : ''}
+      </div>`;
+    if ($("tutBack")) $("tutBack").onclick = () => { tutStep--; renderTutorial(); };
+    $("tutNext").onclick = () => {
+      if (last) closeTutorial(); else { tutStep++; renderTutorial(); }
+    };
+    if ($("tutSkip")) $("tutSkip").onclick = closeTutorial;
+  }
+  function closeTutorial() {
+    $("welcome").classList.remove("show");
+    setSpeed(1);
+    log("Tip: build Housing 🏠 first, then a Farm 🌾 and a Market 🛒. Press Play ▶. 👑", "info");
+  }
+
+  // =========================================================================
   // RENDER LOOP
   // =========================================================================
   function renderLoop() {
@@ -355,11 +419,11 @@
     });
 
     $("btnHealth").onclick = togglePublicHealth;
-    $("closeWelcome").onclick = () => { $("welcome").classList.remove("show"); setSpeed(1); };
+    $("btnHelp").onclick = () => openTutorial(0);
 
     refreshStats();
     renderLoop();
-    log("Welcome to Omandistan! Build housing first to attract settlers. 🏠", "info");
+    openTutorial(0);
   }
 
   window.addEventListener("DOMContentLoaded", boot);

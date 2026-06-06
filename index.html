@@ -16,6 +16,7 @@
       <div class="chip" title="Population"><span class="clab">People</span><span id="c-pop">—</span></div>
       <div class="chip" title="National happiness / utopia score"><span class="clab">Happiness</span><span id="c-happy">—</span></div>
       <div class="chip" title="Gross Domestic Product (monthly output value)"><span class="clab">GDP/mo</span><span id="c-gdp">—</span></div>
+      <div class="chip" title="Productivity from human capital — your PPC multiplier"><span class="clab">PPC</span><span id="c-prod">—</span></div>
       <div class="chip" title="Unemployment rate"><span class="clab">Unemp.</span><span id="c-unemp">—</span></div>
       <div class="chip" title="In-game date"><span class="clab">Date</span><span id="c-date">—</span></div>
     </div>
@@ -31,6 +32,7 @@
     <div id="toolbar"></div>
     <h3>Royal Decrees</h3>
     <button id="btnHealth" class="decree">🏥 Healthcare: Monopoly</button>
+    <button id="btnHelp" class="decree">❓ How to Play (Tutorial)</button>
     <p class="tip">Tip: click a tool, then click a tile. Drag to pan. <b>Space</b> = play/pause.</p>
   </aside>
 
@@ -52,24 +54,8 @@
   <!-- ===== Event modal ===== -->
   <div id="modal" class="modal"></div>
 
-  <!-- ===== Welcome modal ===== -->
-  <div id="welcome" class="modal show">
-    <div class="card">
-      <h2>👑 Welcome to Omandistan 👸</h2>
-      <p>You serve <b>Mr. &amp; Mrs. Omand</b>, the king and queen who approve every action.
-         Each new building costs <b>1 💞 Spreading Love token</b> — earn tokens by building
-         <b>Kindness Centers</b> and helping struggling neighbours.</p>
-      <p>Your mission: shape policy and grow a thriving <b>utopia</b> the size of Alaska.
-         The happier your country, the more people immigrate to it.</p>
-      <ul class="legend">
-        <li>🌾 <b>Farms</b> = perfect competition (price-takers)</li>
-        <li>🏥 <b>Healthcare</b> = monopoly (high price, fewer served)</li>
-        <li>🛒 <b>Goods</b> = elastic luxury · 🌾🏥 food &amp; care = inelastic necessities</li>
-      </ul>
-      <p><b>Start by building Housing 🏠 to attract your first settlers.</b></p>
-      <button id="closeWelcome" class="btn primary">Begin building 🚜</button>
-    </div>
-  </div>
+  <!-- ===== Tutorial / welcome modal (rendered by game.js) ===== -->
+  <div id="welcome" class="modal"></div>
 
   <script src="js/config.js"></script>
   <script src="js/economy.js"></script>

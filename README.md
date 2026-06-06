@@ -23,6 +23,13 @@ No installation, no build step. Just open the game:
 | Cancel a tool | **Esc** |
 
 **Start by building Housing 🏠** — settlers only arrive if there are homes for them.
+A step-by-step **tutorial** opens automatically the first time (reopen it any time with the
+**❓ How to Play** button).
+
+### Buildings
+🏠 Housing · 🌾 Farm (perfect competition) · 🛒 Market · 🏭 Factory · 🏥 Hospital (monopoly) ·
+🏫 School & 🎓 University (human capital) · 🚢 Seaport & ✈️ Airport (global trade) ·
+💞 Kindness Center · 🌳 Park · 🛣️ Road. The Omands live in the 🏰 **castle offshore**.
 
 ## 💞 The Omand approval system
 
@@ -48,6 +55,8 @@ the simulation — they are not cosmetic.
 | **Price elasticity of demand** | Demand uses `Qd = D0 · (P / Pᵣₑf)^elasticity`. **Food & healthcare are necessities → inelastic** (quantity barely moves with price). **Consumer goods are a luxury → elastic** (sales swing a lot). |
 | **Government regulation** | The Omands can decree a **Public Option** for healthcare — price drops near marginal cost, access rises to ~100%, but the **treasury subsidizes** the difference. A clean monopoly-vs-regulation comparison. |
 | **Supply & demand equilibrium** | Markets clear each month at the price where quantity supplied meets quantity demanded. |
+| **Human capital & the PPC** | 🏫 Schools and 🎓 universities raise **human capital**, which increases **productivity** — the same farms and factories produce *more*. This is an outward shift of the **production possibilities curve**, shown live as a "PPC ×" multiplier. |
+| **Gains from trade** | 🚢 Seaports and ✈️ airports open **international trade**: you **export** surplus for profit and **import** to relieve shortages (raising access). Airports add **tourism** income that scales with happiness. |
 
 ### Macroeconomics
 | Concept | Where it lives in the game |
