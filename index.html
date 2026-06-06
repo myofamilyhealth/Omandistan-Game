@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Omandistan — Build a Utopia</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ===== Top HUD ===== -->
+  <header id="hud">
+    <div class="brand">👑 <b>Omandistan</b></div>
+    <div class="chips">
+      <div class="chip" title="National treasury"><span class="clab">Treasury</span><span id="c-treasury">—</span></div>
+      <div class="chip" title="Spreading Love tokens — the Omands' approval currency"><span class="clab">Love</span><span id="c-love">—</span></div>
+      <div class="chip" title="Population"><span class="clab">People</span><span id="c-pop">—</span></div>
+      <div class="chip" title="National happiness / utopia score"><span class="clab">Happiness</span><span id="c-happy">—</span></div>
+      <div class="chip" title="Gross Domestic Product (monthly output value)"><span class="clab">GDP/mo</span><span id="c-gdp">—</span></div>
+      <div class="chip" title="Unemployment rate"><span class="clab">Unemp.</span><span id="c-unemp">—</span></div>
+      <div class="chip" title="In-game date"><span class="clab">Date</span><span id="c-date">—</span></div>
+    </div>
+    <div id="speed" class="speed"></div>
+  </header>
+
+  <!-- ===== Game canvas ===== -->
+  <canvas id="game"></canvas>
+
+  <!-- ===== Left: build toolbar ===== -->
+  <aside id="leftpanel">
+    <h3>Build</h3>
+    <div id="toolbar"></div>
+    <h3>Royal Decrees</h3>
+    <button id="btnHealth" class="decree">🏥 Healthcare: Monopoly</button>
+    <p class="tip">Tip: click a tool, then click a tile. Drag to pan. <b>Space</b> = play/pause.</p>
+  </aside>
+
+  <!-- ===== Right: economy detail + log ===== -->
+  <aside id="rightpanel">
+    <div class="happybar"><div class="happylabel">Utopia Meter</div><div class="happytrack"><div id="happyfill"></div></div></div>
+    <div id="detail"></div>
+    <h3>National Log</h3>
+    <div id="log"></div>
+  </aside>
+
+  <!-- ===== The royal couple flash ===== -->
+  <div id="omandFlash" class="omand-flash">
+    <div class="omand-faces">👑👸</div>
+    <div class="omand-text"></div>
+    <div class="omand-sub">Mr. &amp; Mrs. Omand</div>
+  </div>
+
+  <!-- ===== Event modal ===== -->
+  <div id="modal" class="modal"></div>
+
+  <!-- ===== Welcome modal ===== -->
+  <div id="welcome" class="modal show">
+    <div class="card">
+      <h2>👑 Welcome to Omandistan 👸</h2>
+      <p>You serve <b>Mr. &amp; Mrs. Omand</b>, the king and queen who approve every action.
+         Each new building costs <b>1 💞 Spreading Love token</b> — earn tokens by building
+         <b>Kindness Centers</b> and helping struggling neighbours.</p>
+      <p>Your mission: shape policy and grow a thriving <b>utopia</b> the size of Alaska.
+         The happier your country, the more people immigrate to it.</p>
+      <ul class="legend">
+        <li>🌾 <b>Farms</b> = perfect competition (price-takers)</li>
+        <li>🏥 <b>Healthcare</b> = monopoly (high price, fewer served)</li>
+        <li>🛒 <b>Goods</b> = elastic luxury · 🌾🏥 food &amp; care = inelastic necessities</li>
+      </ul>
+      <p><b>Start by building Housing 🏠 to attract your first settlers.</b></p>
+      <button id="closeWelcome" class="btn primary">Begin building 🚜</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/economy.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
