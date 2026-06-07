@@ -71,7 +71,7 @@
     state.treasury -= def.cost;
     if (def.res) for (const r in def.res) state.resources[r] -= def.res[r];
     if (def.love > 0) { state.loveTokens -= def.love; flashOmand(`Approved! ${def.icon} (−${def.love} 💞)`); }
-    const b = { type: selectedType, cx, cy }; state.buildings.push(b); state.grid[cy][cx] = b;
+    const b = { type: selectedType, cx, cy, level: 1 }; state.buildings.push(b); state.grid[cy][cx] = b;
     log(`Built ${def.name} ${def.icon}.`, "good");
     if (selectedType === "house" && state.population === 0) { state.population = 6; log("6 founding settlers move into Omandistan! 🎉", "good"); }
     refreshStats();
@@ -81,6 +81,30 @@
     const b = state.grid[cy] && state.grid[cy][cx]; if (!b) return;
     state.grid[cy][cx] = null; state.buildings = state.buildings.filter((x) => x !== b);
     log(`Removed ${C.BUILDINGS[b.type].name}.`, ""); refreshStats();
+  }
+
+  // ---- Upgrades -----------------------------------------------------------
+  function upgradeCost(def, toLevel) {
+    const U = C.UPGRADE, res = {};
+    if (def.res) for (const r in def.res) res[r] = Math.ceil(def.res[r] * U.costRes[toLevel - 1]);
+    return { money: Math.round(def.cost * U.costMoney[toLevel - 1]), res, love: U.love };
+  }
+  function upgrade(cx, cy) {
+    const b = state.grid[cy] && state.grid[cy][cx];
+    if (!b) { log("Click a building to upgrade it.", "warn"); return; }
+    if (b.type === "road") { log("Roads can't be upgraded.", "warn"); return; }
+    const def = C.BUILDINGS[b.type], lv = b.level || 1;
+    if (lv >= C.UPGRADE.maxLevel) { log(`${def.name} is already at max level (★${lv}).`, "warn"); return; }
+    const cost = upgradeCost(def, lv + 1);
+    if (state.treasury < cost.money) { log(`Upgrading ${def.name} costs ${money(cost.money)}.`, "warn"); return; }
+    const miss = []; for (const r in cost.res) if ((state.resources[r] || 0) < cost.res[r]) miss.push(cost.res[r] + C.RESOURCES[r].icon);
+    if (miss.length) { log(`Need ${miss.join(", ")} to upgrade ${def.name}.`, "warn"); return; }
+    if (state.loveTokens < cost.love) { log(`The Omands need ${cost.love} 💞 to approve this upgrade.`, "warn"); return; }
+    state.treasury -= cost.money; for (const r in cost.res) state.resources[r] -= cost.res[r]; state.loveTokens -= cost.love;
+    b.level = lv + 1;
+    flashOmand(`${def.icon} upgraded to Level ${b.level}!`);
+    log(`Upgraded ${def.name} to Level ${b.level} ${"★".repeat(b.level)} — more output & jobs!`, "good");
+    refreshStats();
   }
 
   // ---- Land buying --------------------------------------------------------
@@ -221,6 +245,7 @@
       btn.title = def.desc; btn.onclick = () => selectTool(key, btn); bar.appendChild(btn);
     }
     addSpecialTool(bar, "__buyland", "🏞️", "Buy Land", "expand");
+    addSpecialTool(bar, "__upgrade", "⬆️", "Upgrade", "level up");
     addSpecialTool(bar, "__bulldoze", "⛏️", "Bulldoze", "free");
   }
   function addSpecialTool(bar, key, icon, name, cost) {
@@ -234,6 +259,7 @@
     if (wasActive) { selectedType = null; return; }
     selectedType = key; btn.classList.add("active");
     if (key === "__buyland") log(`Buy Land: click a sandy unowned area next to your land. Cost ${money(landCost())} + 1💞.`, "info");
+    else if (key === "__upgrade") log("Upgrade: click a building to level it up — more output & jobs, and a bigger graphic. Markets & production benefit most.", "info");
     else if (key === "__bulldoze") log("Bulldoze: click a building to remove it.", "info");
     else if (C.BUILDINGS[key]) log(`${C.BUILDINGS[key].name}: ${C.BUILDINGS[key].desc}`, "info");
   }
@@ -417,6 +443,7 @@
         const t = R.screenToTile(e.clientX - rect.left, e.clientY - rect.top);
         if (selectedType === "__bulldoze") bulldoze(t.cx, t.cy);
         else if (selectedType === "__buyland") buyLand(t.cx, t.cy);
+        else if (selectedType === "__upgrade") upgrade(t.cx, t.cy);
         else if (selectedType) tryPlace(t.cx, t.cy);
       }
       dragging = false;

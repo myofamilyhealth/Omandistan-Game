@@ -31,26 +31,29 @@ window.Economy = (function () {
       tradeCapacity: 0, airCapacity: 0, gdpI: 0, gdpG: 0,
       produce: { wood: 0, oil: 0, gas: 0 }, farms: 0, tradeUnlocked: false, counts: {},
     };
+    const U = C.UPGRADE;
     for (const b of state.buildings) {
       const def = C.BUILDINGS[b.type];
       if (!def) continue;
+      const lv = b.level || 1;
+      const m = U.outMult[lv - 1], jm = U.jobMult[lv - 1];   // level multipliers
       t.counts[b.type] = (t.counts[b.type] || 0) + 1;
-      t.housing += def.housing || 0;
-      t.foodOutput += def.foodOutput || 0;
-      t.retailOutput += def.goodsOutput || 0;          // grocery/clothing/restaurant
-      t.industrialOutput += def.industrialOutput || 0; // factory/tech
-      t.healthCapacity += def.healthCapacity || 0;
-      t.jobs += def.jobs || 0;
-      t.amenity += def.amenity || 0;
-      t.lovePerTick += def.lovePerTick || 0;
-      t.upkeep += def.upkeep || 0;
-      t.humanCapital += def.humanCapital || 0;
-      t.tradeCapacity += def.tradeCapacity || 0;
-      if (def.tourism) t.airCapacity += def.tradeCapacity || 0;
+      t.housing += (def.housing || 0) * m;
+      t.foodOutput += (def.foodOutput || 0) * m;
+      t.retailOutput += (def.goodsOutput || 0) * m;          // grocery/clothing/restaurant
+      t.industrialOutput += (def.industrialOutput || 0) * m; // factory/tech
+      t.healthCapacity += (def.healthCapacity || 0) * m;
+      t.jobs += (def.jobs || 0) * jm;
+      t.amenity += (def.amenity || 0) * m;
+      t.lovePerTick += (def.lovePerTick || 0) * m;
+      t.upkeep += (def.upkeep || 0) * (1 + (lv - 1) * 0.5);  // bigger buildings cost more
+      t.humanCapital += (def.humanCapital || 0) * m;
+      t.tradeCapacity += (def.tradeCapacity || 0) * m;
+      if (def.tourism) t.airCapacity += (def.tradeCapacity || 0) * m;
       if (def.unlocksTrade) t.tradeUnlocked = true;
-      if (def.gdpc === "I") t.gdpI += def.gdpVal || 0;
-      if (def.gdpc === "G" && b.type !== "hospital") t.gdpG += def.gdpVal || 0;
-      if (def.produces) for (const r in def.produces) t.produce[r] += def.produces[r];
+      if (def.gdpc === "I") t.gdpI += (def.gdpVal || 0) * m;
+      if (def.gdpc === "G" && b.type !== "hospital") t.gdpG += (def.gdpVal || 0) * m;
+      if (def.produces) for (const r in def.produces) t.produce[r] += def.produces[r] * m;
       if (b.type === "farm") t.farms++;
     }
     return t;

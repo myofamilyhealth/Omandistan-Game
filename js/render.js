@@ -14,6 +14,7 @@ window.Render = (function () {
   const cam = { x: 0, y: 0 };
   let originX = 0, originY = 0;
   let waveT = 0, lastTs = 0;
+  let hScale = 1, bodyTint = 0;   // set per-building so upgrades render taller/brighter
 
   function init(cv) {
     canvas = cv; ctx = canvas.getContext("2d");
@@ -38,7 +39,7 @@ window.Render = (function () {
   function centerOn(cx, cy) { const p = tileToScreen(cx, cy); cam.x -= (p.x - originX); cam.y -= (p.y - originY); }
 
   // --- primitives ----------------------------------------------------------
-  function project(p, u, v, z) { return { x: p.x + (u - v) * (TW / 2), y: p.y + (u + v) * (TH / 2) - z * ZUNIT }; }
+  function project(p, u, v, z) { return { x: p.x + (u - v) * (TW / 2), y: p.y + (u + v) * (TH / 2) - z * ZUNIT * hScale }; }
   function poly(pts, fill, stroke) {
     ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -56,11 +57,13 @@ window.Render = (function () {
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   function box(p, u0, v0, u1, v1, z0, z1, color) {
+    if (bodyTint) color = shade(color, bodyTint);
     poly([project(p, u0, v1, z0), project(p, u1, v1, z0), project(p, u1, v1, z1), project(p, u0, v1, z1)], shade(color, -0.30));
     poly([project(p, u1, v0, z0), project(p, u1, v1, z0), project(p, u1, v1, z1), project(p, u1, v0, z1)], shade(color, -0.15));
     poly([project(p, u0, v0, z1), project(p, u1, v0, z1), project(p, u1, v1, z1), project(p, u0, v1, z1)], color);
   }
   function pyramid(p, u0, v0, u1, v1, z0, peak, color) {
+    if (bodyTint) color = shade(color, bodyTint);
     const A = project(p, u0, v0, z0), B = project(p, u1, v0, z0), Cc = project(p, u1, v1, z0), D = project(p, u0, v1, z0);
     const top = project(p, (u0 + u1) / 2, (v0 + v1) / 2, z0 + peak);
     poly([A, B, top], shade(color, -0.05)); poly([A, D, top], shade(color, -0.22));
@@ -108,8 +111,27 @@ window.Render = (function () {
     for (let i = 1; i < 6; i++) for (let j = 1; j < 6; j++) { const q = project(p, i / 6, j / 6, 0); ctx.fillRect(q.x - 1, q.y - 3, 2, 3); }
   }
 
+  // --- upgrade decorations -------------------------------------------------
+  // A gold plaza ring + floating level stars, drawn AFTER a building (hScale=1).
+  function goldRing(cx, cy, level) {
+    const p = tileToScreen(cx, cy);
+    ctx.strokeStyle = level >= 3 ? "#ffd24d" : "#e6bf45"; ctx.lineWidth = level >= 3 ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y + 1); ctx.lineTo(p.x + TW / 2 - 1, p.y + TH / 2);
+    ctx.lineTo(p.x, p.y + TH - 1); ctx.lineTo(p.x - TW / 2 + 1, p.y + TH / 2); ctx.closePath(); ctx.stroke();
+  }
+  function levelBadge(cx, cy, def, level) {
+    const p = tileToScreen(cx, cy);
+    const z = ((def.height || 0.5) * 2.2 + 0.55) * (1 + (level - 1) * 0.30);
+    const s = project(p, 0.5, 0.2, z);
+    const stars = "★".repeat(level);
+    ctx.font = "bold 12px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(60,40,0,0.6)"; ctx.strokeText(stars, s.x, s.y);
+    ctx.fillStyle = "#ffd24d"; ctx.fillText(stars, s.x, s.y);
+  }
+
   // --- per-building renderers ----------------------------------------------
-  function shopBox(p, def, cx, cy, awningColor) {
+  function shopBox(p, def, cx, cy, awningColor, level) {
     box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.55, shade(def.color, jit(cx, cy)));
     box(p, 0.2, 0.2, 0.8, 0.8, 0.55, 0.62, shade(def.color, -0.25));
     for (let i = 0; i < 5; i++) {
@@ -117,6 +139,14 @@ window.Render = (function () {
       poly([project(p, ua, 0.8, 0.5), project(p, ub, 0.8, 0.5), project(p, ub, 0.95, 0.42), project(p, ua, 0.95, 0.42)], i % 2 ? awningColor : "#f4f0e6");
     }
     windowsV1(p, 0.8, [0.35, 0.65], 0.18, 0.4, "#cfe8ff");
+    if (level >= 2) {                                   // upgraded: extra storey
+      box(p, 0.26, 0.26, 0.74, 0.74, 0.62, 1.02, shade(def.color, 0.08));
+      windowsV1(p, 0.74, [0.4, 0.6], 0.72, 0.94, "#cfe8ff");
+    }
+    if (level >= 3) {                                   // upgraded II: gold penthouse + sign
+      box(p, 0.34, 0.34, 0.66, 0.66, 1.02, 1.34, "#e7c659");
+      flag(p, 0.5, 0.5, 1.34, awningColor);
+    }
   }
   const DRAW = {
     road() {},
@@ -127,27 +157,33 @@ window.Render = (function () {
       pyramid(p, 0.18, 0.18, 0.82, 0.82, 0.75, 0.42, "#b5503f");
       box(p, 0.3, 0.3, 0.38, 0.38, 0.75, 1.2, "#9a5a3a");
     },
-    farm(p, def, cx, cy) {
+    farm(p, def, cx, cy, lv) {
       farmlandTile(cx, cy);
       box(p, 0.1, 0.55, 0.42, 0.88, 0, 0.5, "#b5503f"); pyramid(p, 0.07, 0.52, 0.45, 0.91, 0.5, 0.3, "#7c3a2e");
       box(p, 0.62, 0.18, 0.8, 0.36, 0, 0.7, "#d8d2c2"); pyramid(p, 0.6, 0.16, 0.82, 0.38, 0.7, 0.22, "#9a9484");
+      if (lv >= 2) { box(p, 0.82, 0.42, 0.96, 0.58, 0, 0.85, "#e0dac9"); pyramid(p, 0.8, 0.4, 0.98, 0.6, 0.85, 0.22, "#9a9484"); }   // second silo
+      if (lv >= 3) { box(p, 0.5, 0.5, 0.66, 0.66, 0, 0.9, "#cdb98f"); const a = project(p, 0.58, 0.58, 0.9); ctx.strokeStyle = "#7a5a2a"; ctx.lineWidth = 2; // windmill
+        for (let k = 0; k < 4; k++) { const ang = k * Math.PI / 2 + waveT * 0.3; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + Math.cos(ang) * 10, a.y + Math.sin(ang) * 6); ctx.stroke(); } }
     },
-    grocery(p, d, x, y) { shopBox(p, d, x, y, "#e85d5d"); },
-    clothing(p, d, x, y) { shopBox(p, d, x, y, "#b65aa0"); },
-    restaurant(p, d, x, y) {
-      shopBox(p, d, x, y, "#e0894a");
-      const s = project(p, 0.5, 0.4, 0.9); ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.fillText("🍔", s.x, s.y);
+    grocery(p, d, x, y, lv) { shopBox(p, d, x, y, "#e85d5d", lv); },
+    clothing(p, d, x, y, lv) { shopBox(p, d, x, y, "#b65aa0", lv); },
+    restaurant(p, d, x, y, lv) {
+      shopBox(p, d, x, y, "#e0894a", lv);
+      const s = project(p, 0.5, 0.4, lv >= 2 ? 1.5 : 0.9); ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.fillText("🍔", s.x, s.y);
     },
-    tech(p, def, cx, cy) {
+    tech(p, def, cx, cy, lv) {
       box(p, 0.18, 0.2, 0.82, 0.8, 0, 0.8, shade(def.color, jit(cx, cy)));
-      // glass curtain wall
       for (let z = 0.1; z < 0.78; z += 0.16) windowsV1(p, 0.8, [0.3, 0.45, 0.6, 0.72], z, z + 0.1, "#8fd0ff");
       box(p, 0.4, 0.4, 0.6, 0.6, 0.8, 1.05, "#33408c");
+      if (lv >= 2) { box(p, 0.26, 0.26, 0.74, 0.74, 1.05, 1.5, shade(def.color, 0.1)); for (let z = 1.1; z < 1.46; z += 0.16) windowsV1(p, 0.74, [0.36, 0.52, 0.66], z, z + 0.1, "#8fd0ff"); }
+      if (lv >= 3) { box(p, 0.47, 0.47, 0.53, 0.53, 1.5, 2.1, "#9aa6c8"); const a = project(p, 0.5, 0.5, 2.15); ctx.fillStyle = "#ff5a5a"; ctx.beginPath(); ctx.arc(a.x, a.y, 3, 0, 7); ctx.fill(); }
     },
-    factory(p, def, cx, cy) {
+    factory(p, def, cx, cy, lv) {
       box(p, 0.15, 0.2, 0.85, 0.8, 0, 0.8, shade(def.color, jit(cx, cy)));
       box(p, 0.6, 0.22, 0.72, 0.34, 0.8, 1.5, "#7a6347"); box(p, 0.74, 0.22, 0.86, 0.34, 0.8, 1.35, "#7a6347");
-      const s = project(p, 0.66, 0.28, 1.55); ctx.fillStyle = "rgba(230,230,230,0.85)";
+      if (lv >= 2) box(p, 0.46, 0.22, 0.58, 0.34, 0.8, 1.7, "#7a6347");
+      if (lv >= 3) { box(p, 0.32, 0.22, 0.44, 0.34, 0.8, 1.9, "#6e5940"); box(p, 0.15, 0.55, 0.4, 0.8, 0.8, 1.05, shade(def.color, -0.08)); }
+      const s = project(p, 0.66, 0.28, lv >= 2 ? 1.75 : 1.55); ctx.fillStyle = "rgba(230,230,230,0.85)";
       ctx.beginPath(); ctx.arc(s.x, s.y, 7, 0, 7); ctx.arc(s.x + 6, s.y - 4, 5, 0, 7); ctx.fill();
       windowsV1(p, 0.8, [0.3, 0.45], 0.2, 0.55, "#bcd2e0");
     },
@@ -158,19 +194,21 @@ window.Render = (function () {
       for (const u of [0.24, 0.4, 0.56, 0.72]) box(p, u - 0.02, 0.82, u + 0.02, 0.86, 0, 0.7, "#eef4ef"); // columns
       const s = project(p, 0.5, 0.5, 0.9); ctx.fillStyle = "#caa446"; ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("$", s.x, s.y);
     },
-    lumber(p, def, cx, cy) {
+    lumber(p, def, cx, cy, lv) {
       box(p, 0.18, 0.5, 0.5, 0.84, 0, 0.42, "#8a6a40"); pyramid(p, 0.15, 0.47, 0.53, 0.87, 0.42, 0.22, "#5e4a30");
-      // log pile
-      for (let i = 0; i < 3; i++) box(p, 0.58, 0.2 + i * 0.12, 0.86, 0.3 + i * 0.12, 0.05, 0.18, "#b58a52");
-      tree(p, 0.32, 0.25);
+      const rows = lv >= 3 ? 5 : lv >= 2 ? 4 : 3;
+      for (let i = 0; i < rows; i++) box(p, 0.58, 0.16 + i * 0.11, 0.86, 0.25 + i * 0.11, 0.05, 0.18 + (lv - 1) * 0.06, "#b58a52");
+      tree(p, 0.32, 0.25); if (lv >= 2) tree(p, 0.2, 0.34);
     },
-    oilrig(p, def, cx, cy) {
+    oilrig(p, def, cx, cy, lv) {
       box(p, 0.4, 0.4, 0.6, 0.6, 0, 0.3, "#2a2a30");
-      // derrick tower (4 legs + cap)
-      box(p, 0.42, 0.42, 0.46, 0.46, 0.3, 1.4, "#555"); box(p, 0.54, 0.42, 0.58, 0.46, 0.3, 1.4, "#555");
-      box(p, 0.42, 0.54, 0.46, 0.58, 0.3, 1.4, "#555"); box(p, 0.54, 0.54, 0.58, 0.58, 0.3, 1.4, "#555");
-      pyramid(p, 0.4, 0.4, 0.6, 0.6, 1.4, 0.25, "#3a3a44");
-      box(p, 0.18, 0.62, 0.34, 0.78, 0, 0.4, "#6a5a3a");   // storage tank
+      const top = 1.4 + (lv - 1) * 0.35;
+      box(p, 0.42, 0.42, 0.46, 0.46, 0.3, top, "#555"); box(p, 0.54, 0.42, 0.58, 0.46, 0.3, top, "#555");
+      box(p, 0.42, 0.54, 0.46, 0.58, 0.3, top, "#555"); box(p, 0.54, 0.54, 0.58, 0.58, 0.3, top, "#555");
+      pyramid(p, 0.4, 0.4, 0.6, 0.6, top, 0.25, "#3a3a44");
+      box(p, 0.18, 0.62, 0.34, 0.78, 0, 0.4, "#6a5a3a");
+      if (lv >= 2) box(p, 0.66, 0.66, 0.84, 0.84, 0, 0.5, "#6a5a3a");   // extra tank
+      if (lv >= 3) box(p, 0.18, 0.18, 0.32, 0.32, 0, 0.55, "#5a4a30");
     },
     gasmine(p, def, cx, cy) {
       box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.4, shade(def.color, jit(cx, cy)));
@@ -325,7 +363,16 @@ window.Render = (function () {
 
         if (cx === castle.cx && cy === castle.cy) { drawCastle(cx, cy); continue; }
         const b = state.grid[cy] && state.grid[cy][cx];
-        if (b) { if (b.type === "road") roadTile(cx, cy); else if (DRAW[b.type]) DRAW[b.type](tileToScreen(cx, cy), C.BUILDINGS[b.type], cx, cy); }
+        if (b) {
+          if (b.type === "road") roadTile(cx, cy);
+          else if (DRAW[b.type]) {
+            const lv = b.level || 1;
+            hScale = 1 + (lv - 1) * 0.30; bodyTint = (lv - 1) * 0.05;
+            DRAW[b.type](tileToScreen(cx, cy), C.BUILDINGS[b.type], cx, cy, lv);
+            hScale = 1; bodyTint = 0;
+            if (lv > 1) { goldRing(cx, cy, lv); levelBadge(cx, cy, C.BUILDINGS[b.type], lv); }
+          }
+        }
       }
     }
 
@@ -336,8 +383,10 @@ window.Render = (function () {
       const occupied = (state.grid[hover.cy] && state.grid[hover.cy][hover.cx]) || (hover.cx === castle.cx && hover.cy === castle.cy);
       let hl = occupied ? "rgba(220,80,80,0.30)" : "rgba(255,255,255,0.35)";
       if (selectedType === "__buyland") hl = "rgba(216,178,74,0.40)";
+      if (selectedType === "__upgrade") hl = occupied ? "rgba(120,220,140,0.40)" : "rgba(255,255,255,0.25)";
       diamond(hover.cx, hover.cy, hl, "#ffffff");
-      if (selectedType && selectedType !== "__bulldoze" && selectedType !== "__buyland" && !occupied) {
+      const special = selectedType === "__bulldoze" || selectedType === "__buyland" || selectedType === "__upgrade";
+      if (selectedType && !special && !occupied) {
         ctx.globalAlpha = 0.6;
         if (selectedType === "road") roadTile(hover.cx, hover.cy);
         else if (DRAW[selectedType]) DRAW[selectedType](tileToScreen(hover.cx, hover.cy), C.BUILDINGS[selectedType], hover.cx, hover.cy);

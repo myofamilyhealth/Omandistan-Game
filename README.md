@@ -129,3 +129,14 @@ A big update layered on top of the core sim:
   fairer, so they cost less happiness than a flat tax at the same rate.
 - **Minimap.** A live 🗺️ minimap (bottom-right) shows owned vs. unowned land and your buildings;
   click it to recenter the camera.
+
+## ⬆️ Building upgrades
+
+Every building can be upgraded with the **⬆️ Upgrade** tool — click a building to level it up
+(★ → ★★ → ★★★). Each level **multiplies its output, capacity and jobs** (×1.6 then ×2.3) and
+gives it a **new, bigger graphic**: upgraded buildings grow taller, gain a **gold plaza ring**
+and floating **level stars**, and key types get extra structure — shops gain a second storey
+and a rooftop penthouse, factories gain more smokestacks, farms gain silos and a windmill, tech
+parks gain towers, and so on. Upgrades cost money, resources and 1 💞 (Omand approval), with the
+price rising at each level. Great for scaling up your **markets and production** as the country
+grows.

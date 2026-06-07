@@ -164,6 +164,19 @@ window.CONFIG = (function () {
     "port", "airport", "kindness", "park",
   ];
 
+  // ---- Building upgrades --------------------------------------------------
+  // Every building can be upgraded. Each level multiplies its output/capacity
+  // and jobs, costs money + resources + 1 love token, and changes its graphic.
+  const UPGRADE = {
+    maxLevel: 3,
+    outMult: [1, 1.6, 2.3],     // output / capacity multiplier by level (1-indexed)
+    jobMult: [1, 1.5, 2.0],     // jobs multiplier by level
+    names: ["", " II", " III"], // suffix shown for the level
+    costMoney: [0, 1.4, 2.2],   // upgrade cost = base.cost * this (to reach that level)
+    costRes: [0, 0.9, 1.6],     // resource cost = base.res * this
+    love: 1,                     // love tokens the Omands require to approve an upgrade
+  };
+
   // ---- Other countries (already-built island economies) --------------------
   // endow = resource abundance (also their export specialty if high).
   // wants = resources they are short of (high value to them in trade).
@@ -229,11 +242,15 @@ window.CONFIG = (function () {
       body: "Build a <b>Seaport 🚢</b> to unlock <b>global trade</b>. Open the <b>World Map 🌍</b> to visit "
           + "<b>Elliott Emperace</b> (oil), <b>Wardmania</b> (wood), <b>Cindara</b> (gas) and <b>Technova</b> (tech). "
           + "Propose trades — they only accept deals that <b>expand their PPC</b>. You can also set <b>tariffs</b>." },
+    { title: "⬆️ Upgrade & grow",
+      body: "Use the <b>⬆️ Upgrade</b> tool and click any building to <b>level it up</b> (★ → ★★ → ★★★). "
+          + "Each level boosts its output &amp; jobs and gives it a <b>bigger graphic</b> — especially markets and "
+          + "production buildings. Upgrades cost money, resources and 1 💞." },
     { title: "🚀 You're ready!",
       body: "Try: <b>Roads → 2 Houses → a Lumber Camp → a Farm → a Grocery → a Kindness Center</b>, then press "
           + "<b>Play ▶</b>. Grow your human capital, trade with the world, and build a utopia. Long live Omandistan!" },
   ];
 
-  return { MAP, CASTLE, START, RESOURCES, ECON, TAX, BUILDINGS, BUILD_ORDER,
+  return { MAP, CASTLE, START, RESOURCES, ECON, TAX, UPGRADE, BUILDINGS, BUILD_ORDER,
            COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
 })();
