@@ -19,6 +19,9 @@
       <div class="chip" title="Productivity from human capital — your PPC multiplier"><span class="clab">PPC</span><span id="c-prod">—</span></div>
       <div class="chip" title="Unemployment rate"><span class="clab">Unemp.</span><span id="c-unemp">—</span></div>
       <div class="chip" title="In-game date"><span class="clab">Date</span><span id="c-date">—</span></div>
+      <div class="chip res" title="Wood — from Lumber Camps"><span id="r-wood">—</span></div>
+      <div class="chip res" title="Oil — from Oil Derricks"><span id="r-oil">—</span></div>
+      <div class="chip res" title="Gas — from Gas Mines"><span id="r-gas">—</span></div>
     </div>
     <div id="speed" class="speed"></div>
   </header>
@@ -32,8 +35,10 @@
     <div id="toolbar"></div>
     <h3>Royal Decrees</h3>
     <button id="btnHealth" class="decree">🏥 Healthcare: Monopoly</button>
+    <button id="btnTax" class="decree">🏛️ Tax System</button>
+    <button id="btnWorld" class="decree">🌍 World Map &amp; Trade</button>
     <button id="btnHelp" class="decree">❓ How to Play (Tutorial)</button>
-    <p class="tip">Tip: click a tool, then click a tile. Drag to pan. <b>Space</b> = play/pause.</p>
+    <p class="tip">Lay 🛣️ roads first — every building must touch one. Drag to pan. <b>Space</b> = play/pause.</p>
   </aside>
 
   <!-- ===== Right: economy detail + log ===== -->
@@ -43,6 +48,12 @@
     <h3>National Log</h3>
     <div id="log"></div>
   </aside>
+
+  <!-- ===== Minimap (home island; click to recenter) ===== -->
+  <div id="minimapbox">
+    <div class="mmlabel">🗺️ Omandistan</div>
+    <canvas id="minimap" width="150" height="150"></canvas>
+  </div>
 
   <!-- ===== The royal couple flash ===== -->
   <div id="omandFlash" class="omand-flash">
@@ -57,7 +68,12 @@
   <!-- ===== Tutorial / welcome modal (rendered by game.js) ===== -->
   <div id="welcome" class="modal"></div>
 
+  <!-- ===== Generic dialog (tax & trade), world map (both rendered by game.js) ===== -->
+  <div id="dialog" class="modal"></div>
+  <div id="world" class="modal"></div>
+
   <script src="js/config.js"></script>
+  <script src="js/world.js"></script>
   <script src="js/economy.js"></script>
   <script src="js/render.js"></script>
   <script src="js/game.js"></script>

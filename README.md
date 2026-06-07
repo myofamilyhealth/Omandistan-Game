@@ -2,7 +2,7 @@
 
 A browser-based, isometric city-builder economics game for **AP Macro & Micro Economics**.
 You are a builder serving **Mr. & Mrs. Omand** — the king and queen (the "government") who
-approve every action. Grow Omandistan (a country roughly the size of Alaska) into a thriving
+approve every action. Grow Omandistan into a thriving
 utopia by setting good policy. The happier your country, the more people immigrate to it.
 
 ## ▶️ How to play
@@ -27,9 +27,11 @@ A step-by-step **tutorial** opens automatically the first time (reopen it any ti
 **❓ How to Play** button).
 
 ### Buildings
-🏠 Housing · 🌾 Farm (perfect competition) · 🛒 Market · 🏭 Factory · 🏥 Hospital (monopoly) ·
-🏫 School & 🎓 University (human capital) · 🚢 Seaport & ✈️ Airport (global trade) ·
-💞 Kindness Center · 🌳 Park · 🛣️ Road. The Omands live in the 🏰 **castle offshore**.
+🛣️ Road · 🏠 Housing · 🌾 Farm (perfect competition) · 🛒 Grocery · 👕 Clothing · 🍔 Restaurant ·
+💻 Tech Park · 🏭 Factory · 🏦 Bank · 🪓 Lumber Camp · 🛢️ Oil Derrick · ⛏️ Gas Mine ·
+🏥 Hospital (monopoly) · 🏫 School & 🎓 University (human capital) · 🚢 Seaport & ✈️ Airport
+(global trade) · 💞 Kindness Center · 🌳 Park. The Omands live in the 🏰 **castle offshore**.
+See the **v3** section below for resources, land-buying, the world map and trade.
 
 ## 💞 The Omand approval system
 
@@ -61,7 +63,7 @@ the simulation — they are not cosmetic.
 ### Macroeconomics
 | Concept | Where it lives in the game |
 | --- | --- |
-| **GDP** | Total monthly value of food + healthcare + goods produced. |
+| **GDP (expenditure approach)** | **GDP = C + I + G + Xn** — Consumption (shops/food), Investment (factories/tech/banks/resources), Government (schools/hospitals/parks), and Net Exports (trade). Shown as a live breakdown. |
 | **Unemployment** | Labor force (≈62% of population) vs. jobs created by buildings. |
 | **Inflation** | Month-over-month change in a weighted **price index**. |
 | **Taxation & fiscal policy** | The Omands collect a share of GDP as tax; upkeep and subsidies are spending. |
@@ -78,10 +80,11 @@ healthcare access if we lower the monopoly markup?"
 ```
 index.html        # layout + HUD
 css/style.css     # royal / utopia theme
-js/config.js      # all tunable parameters + building catalogue
-js/economy.js     # the AP Econ simulation (the heart of the game)
-js/render.js      # isometric 2.5D renderer (procedural, no image assets)
-js/game.js        # state, input, Omand approval, events, UI
+js/config.js      # all tunable parameters, buildings, resources, countries, tax presets
+js/world.js       # the other countries + PPC-based trade evaluation
+js/economy.js     # the AP Econ simulation (GDP=C+I+G+Xn, the heart of the game)
+js/render.js      # isometric 2.5D renderer (procedural, cars, districts, no image assets)
+js/game.js        # state, input, Omand approval, land buying, world map, tax, events, UI
 ```
 
 ## 🗺️ Roadmap ideas (not yet built)
@@ -92,3 +95,37 @@ js/game.js        # state, input, Omand approval, events, UI
 
 ---
 Built for an AP Economics class project. Have fun, and long live Omandistan! 👑
+
+---
+
+## 🌍 v3 — Roads, Resources, the World & Trade
+
+A big update layered on top of the core sim:
+
+- **Cars on the roads.** Traffic drives along your road network. **Every building must
+  touch a road**, so plan your grid (roads are pre-approved — no love token needed).
+- **Buy land / expand your island.** You start owning one **district**. Use the **🏞️ Buy Land**
+  tool to purchase adjacent areas (money + 1 love token) and grow your territory. The sea
+  around you is large — other nations lie across the water.
+- **Resources: 🪵 Wood, 🛢️ Oil, 🔥 Gas.** Buildings now cost resources as well as money, so you
+  must build **Lumber Camps 🪓, Oil Derricks 🛢️ and Gas Mines ⛏️** to keep constructing.
+- **Real business sectors → GDP components.** Instead of one "market," you build **Grocery 🛒,
+  Clothing 👕, Restaurant 🍔** (→ **Consumption, C**), **Tech Park 💻, Factory 🏭, Bank 🏦**
+  (→ **Investment, I**), public services (→ **Government, G**), and **Seaports/Airports**
+  (→ **Net Exports, Xn**). The panel shows **GDP = C + I + G + Xn** live.
+- **The wider world.** Open the **🌍 World Map** to fast-travel to four prebuilt economies, each
+  with a specialty:
+  - **Elliott Emperace 🛢️** — oil
+  - **Wardmania 🌲** — wood
+  - **Cindara 🔥** — gas
+  - **Technova 💡** — technology (resource-poor but rich)
+- **PPC-based trade.** Build a **Seaport** to unlock trade, then propose recurring deals. A
+  country **only accepts a deal that expands its own PPC** — it values what it lacks and
+  discounts what it has in plenty (comparative advantage & gains from trade in action).
+- **Tariffs.** Set an import tariff per country: it earns you revenue but sours relations, so
+  high tariffs make partners refuse deals.
+- **Adjustable tax system.** Open **🏛️ Tax System** to choose low/flat/progressive/high taxes.
+  Higher rates fund more Government spending but lower happiness; **progressive** taxes feel
+  fairer, so they cost less happiness than a flat tax at the same rate.
+- **Minimap.** A live 🗺️ minimap (bottom-right) shows owned vs. unowned land and your buildings;
+  click it to recenter the camera.
