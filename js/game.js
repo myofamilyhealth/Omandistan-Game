@@ -105,7 +105,68 @@
     flashOmand(`${def.icon} upgraded to Level ${b.level}!`);
     log(`Upgraded ${def.name} to Level ${b.level} ${"★".repeat(b.level)} — more output & jobs!`, "good");
     refreshStats();
+    return true;
   }
+
+  // ---- Building inspector popup -------------------------------------------
+  let inspect = null;   // { cx, cy, x, y }
+  const GDPNAME = { C: "Consumption (C)", I: "Investment (I)", G: "Government (G)", X: "Net Exports (Xn)" };
+  function buildingLines(def, lv) {
+    const U = C.UPGRADE, m = U.outMult[lv - 1], jm = U.jobMult[lv - 1], lines = [];
+    if (def.jobs) lines.push(`👷 Jobs: <b>${Math.round(def.jobs * jm)}</b>`);
+    if (def.housing) lines.push(`🏠 Housing: <b>${Math.round(def.housing * m)}</b>`);
+    if (def.foodOutput) lines.push(`🌾 Food: <b>${(def.foodOutput * m).toFixed(0)}</b>/mo`);
+    if (def.goodsOutput) lines.push(`🛒 Retail goods: <b>${(def.goodsOutput * m).toFixed(0)}</b>/mo`);
+    if (def.industrialOutput) lines.push(`🏭 Output: <b>${(def.industrialOutput * m).toFixed(0)}</b>/mo`);
+    if (def.healthCapacity) lines.push(`🏥 Care capacity: <b>${Math.round(def.healthCapacity * m)}</b>`);
+    if (def.humanCapital) lines.push(`🎓 Human capital: <b>${Math.round(def.humanCapital * m)}</b>`);
+    if (def.amenity) lines.push(`🌳 Amenity: <b>${Math.round(def.amenity * m)}</b>`);
+    if (def.tradeCapacity) lines.push(`🚢 Trade cap: <b>${Math.round(def.tradeCapacity * m)}</b>/mo`);
+    if (def.lovePerTick) lines.push(`💞 Love: <b>+${(def.lovePerTick * m).toFixed(1)}</b>/mo`);
+    if (def.produces) for (const r in def.produces) lines.push(`${C.RESOURCES[r].icon} ${C.RESOURCES[r].name}: <b>+${(def.produces[r] * m).toFixed(1)}</b>/mo`);
+    if (def.gdpc) lines.push(`💵 Feeds: <b>${GDPNAME[def.gdpc]}</b>`);
+    lines.push(`🛠️ Upkeep: <b>${money(def.upkeep * (1 + (lv - 1) * 0.5))}</b>/mo`);
+    return lines;
+  }
+  function openInspect(cx, cy, x, y) {
+    const b = state.grid[cy] && state.grid[cy][cx];
+    if (!b || b.type === "road") { closeInspect(); return; }
+    inspect = { cx, cy, x, y };
+    renderInspect();
+  }
+  function renderInspect() {
+    if (!inspect) return;
+    const el = $("inspect");
+    const b = state.grid[inspect.cy] && state.grid[inspect.cy][inspect.cx];
+    if (!b) { closeInspect(); return; }
+    const def = C.BUILDINGS[b.type], lv = b.level || 1, U = C.UPGRADE;
+    const stars = "★".repeat(lv) + "☆".repeat(U.maxLevel - lv);
+    let upg;
+    if (lv >= U.maxLevel) {
+      upg = `<div class="ins-max">★ Max level reached</div>`;
+    } else {
+      const cost = upgradeCost(def, lv + 1);
+      const resStr = Object.keys(cost.res).map((r) => cost.res[r] + C.RESOURCES[r].icon).join(" ");
+      const can = state.treasury >= cost.money && state.loveTokens >= cost.love &&
+                  Object.keys(cost.res).every((r) => (state.resources[r] || 0) >= cost.res[r]);
+      upg = `<button id="insUpg" class="btn primary ins-upg ${can ? "" : "disabled"}">⬆️ Upgrade to ★${lv + 1}
+        <span class="ins-cost">${money(cost.money)}${resStr ? " · " + resStr : ""} · 1💞</span></button>`;
+    }
+    el.innerHTML = `<div class="ins-head"><span>${def.icon} ${def.name}</span><button id="insClose" class="ins-x">✕</button></div>
+      <div class="ins-stars">${stars} <span class="ins-cat">${def.category}</span></div>
+      <div class="ins-lines">${buildingLines(def, lv).map((l) => `<div>${l}</div>`).join("")}</div>
+      ${upg}
+      <button id="insDemo" class="btn ins-demo">⛏️ Demolish</button>`;
+    // position (clamped to viewport)
+    const w = 232, h = el.offsetHeight || 260;
+    el.style.left = Math.min(inspect.x + 14, window.innerWidth - w - 10) + "px";
+    el.style.top = Math.min(inspect.y, window.innerHeight - h - 10) + "px";
+    el.classList.add("show");
+    $("insClose").onclick = closeInspect;
+    $("insDemo").onclick = () => { bulldoze(inspect.cx, inspect.cy); closeInspect(); };
+    if ($("insUpg")) $("insUpg").onclick = () => { upgrade(inspect.cx, inspect.cy); };
+  }
+  function closeInspect() { inspect = null; const el = $("inspect"); if (el) el.classList.remove("show"); }
 
   // ---- Land buying --------------------------------------------------------
   function landCost() { return 250 * Object.keys(state.ownedDistricts).length; }
@@ -231,6 +292,7 @@
     meter.style.width = Math.round(state.happiness) + "%";
     meter.style.background = state.happiness > 66 ? "#4e9d5b" : state.happiness > 40 ? "#d9a441" : "#cc5b5b";
     drawMinimap();
+    if (inspect) renderInspect();   // keep the open inspector's numbers fresh
   }
   function setChip(id, val) { const el = $(id); if (el) el.textContent = val; }
 
@@ -254,6 +316,7 @@
     b.onclick = () => selectTool(key, b); bar.appendChild(b);
   }
   function selectTool(key, btn) {
+    closeInspect();
     const wasActive = selectedType === key;
     document.querySelectorAll(".tool").forEach((b) => b.classList.remove("active"));
     if (wasActive) { selectedType = null; return; }
@@ -445,6 +508,7 @@
         else if (selectedType === "__buyland") buyLand(t.cx, t.cy);
         else if (selectedType === "__upgrade") upgrade(t.cx, t.cy);
         else if (selectedType) tryPlace(t.cx, t.cy);
+        else openInspect(t.cx, t.cy, e.clientX, e.clientY);   // no tool → inspect
       }
       dragging = false;
     });
@@ -459,7 +523,7 @@
       if (e.key === "ArrowLeft") R.pan(st, 0); else if (e.key === "ArrowRight") R.pan(-st, 0);
       else if (e.key === "ArrowUp") R.pan(0, st); else if (e.key === "ArrowDown") R.pan(0, -st);
       else if (e.key === " ") { e.preventDefault(); setSpeed(speedIndex === 0 ? 1 : 0); }
-      else if (e.key === "Escape") { selectedType = null; document.querySelectorAll(".tool").forEach((b) => b.classList.remove("active")); }
+      else if (e.key === "Escape") { selectedType = null; closeInspect(); document.querySelectorAll(".tool").forEach((b) => b.classList.remove("active")); }
     });
   }
 

@@ -132,6 +132,10 @@ A big update layered on top of the core sim:
 
 ## ⬆️ Building upgrades
 
+**Tip:** with no tool selected, **click any building** to open an info popup showing its level,
+exactly what it produces at that level, its upkeep, and an **Upgrade button with the precise
+cost** (plus a Demolish button).
+
 Every building can be upgraded with the **⬆️ Upgrade** tool — click a building to level it up
 (★ → ★★ → ★★★). Each level **multiplies its output, capacity and jobs** (×1.6 then ×2.3) and
 gives it a **new, bigger graphic**: upgraded buildings grow taller, gain a **gold plaza ring**

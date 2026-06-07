@@ -205,3 +205,18 @@ aside h3:first-child { margin-top: 0; }
 .taxbtn .sub { font-size: 10px; color: #8a978c; font-weight: 400; }
 .taxbtn.on { border-color: var(--gold); background: #fff8e6; box-shadow: 0 0 0 2px rgba(216,178,74,0.4); }
 .warn { color: #b4541f; font-weight: 600; }
+
+/* building inspector popup */
+#inspect { position: fixed; z-index: 35; width: 232px; background: #fffdf6;
+  border: 2px solid var(--gold); border-radius: 14px; padding: 12px 14px;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.32); display: none; }
+#inspect.show { display: block; }
+.ins-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 15px; color: #6b531a; }
+.ins-x { background: none; border: none; font-size: 14px; cursor: pointer; color: #9a8f7a; }
+.ins-stars { font-size: 13px; color: var(--gold); margin: 2px 0 8px; }
+.ins-cat { font-size: 10px; color: #8a978c; background: #f3efe4; padding: 1px 6px; border-radius: 6px; vertical-align: middle; }
+.ins-lines { font-size: 12px; line-height: 1.7; color: #3a473c; border-top: 1px dashed var(--panel-edge); padding-top: 6px; margin-bottom: 8px; }
+.ins-upg { width: 100%; display: flex; flex-direction: column; gap: 1px; padding: 8px; font-size: 13px; }
+.ins-cost { font-size: 10px; font-weight: 400; opacity: 0.92; }
+.ins-demo { width: 100%; margin-top: 6px; padding: 6px; font-size: 12px; color: #b4541f; }
+.ins-max { text-align: center; font-size: 12px; color: var(--green); font-weight: 700; padding: 6px; background: #eaf7ec; border-radius: 8px; }
