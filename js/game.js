@@ -23,6 +23,7 @@
     tariffs: { elliott: 0, wardmania: 0, cindara: 0, technova: 0 },
     trade: { deals: [] },
     countryPPC: {},
+    diff: C.DIFFICULTY.normal,   // economic difficulty (chosen at start)
     stats: null,
   };
   for (const k in C.COUNTRIES) state.countryPPC[k] = C.COUNTRIES[k].ppc;
@@ -302,7 +303,7 @@
 
     const reg = s.health.regulated, gp = s.gdpParts;
     $("detail").innerHTML = `
-      <div class="dgroup"><h4>💵 GDP = C + I + G + Xn</h4>
+      <div class="dgroup"><h4>💵 GDP = C + I + G + Xn <span class="hint">· ${state.diff.emoji} ${state.diff.label}</span></h4>
         <div class="cigx">
           <span class="cig c">C ${money(gp.C)}</span><span class="cig i">I ${money(gp.I)}</span>
           <span class="cig g">G ${money(gp.G)}</span><span class="cig x">Xn ${money(gp.X)}</span>
@@ -542,6 +543,34 @@
     R.centerOn(cx, cy);
   }
 
+  // ---- Difficulty selection (shown first) ---------------------------------
+  function openDifficulty() {
+    setSpeed(0);
+    const cards = C.DIFF_ORDER.map((k) => {
+      const d = C.DIFFICULTY[k];
+      return `<button class="diffbtn" data-k="${k}"><div class="diffemoji">${d.emoji}</div>
+        <b>${d.label}</b><span>${d.blurb}</span></button>`;
+    }).join("");
+    $("welcome").innerHTML = `<div class="card diffcard">
+      <div class="omand-faces" style="font-size:34px;text-align:center">👑👸</div>
+      <h2>Choose your challenge</h2>
+      <p>How tough should Omandistan's economy be? Difficulty sets your <b>starting money &amp; resources</b>,
+      <b>upkeep costs</b>, <b>income</b>, <b>pollution</b> severity and how fast <b>immigrants</b> arrive.</p>
+      <div class="diffgrid">${cards}</div></div>`;
+    $("welcome").classList.add("show");
+    $("welcome").querySelectorAll(".diffbtn").forEach((b) => b.onclick = () => { applyDifficulty(b.dataset.k); openTutorial(0); });
+  }
+  function applyDifficulty(k) {
+    const d = C.DIFFICULTY[k];
+    state.diff = d;
+    state.treasury = d.treasury;
+    state.loveTokens = d.love;
+    state.resources = { wood: d.resources.wood, oil: d.resources.oil, gas: d.resources.gas };
+    state.stats = null;
+    log(`Difficulty set: ${d.emoji} ${d.label}.`, "info");
+    refreshStats();
+  }
+
   // ---- Tutorial -----------------------------------------------------------
   let tutStep = 0;
   function openTutorial(step) { tutStep = step || 0; setSpeed(0); renderTutorial(); $("welcome").classList.add("show"); }
@@ -615,7 +644,7 @@
     // center camera on the starting district
     const mid = C.MAP.landLo + Math.floor(C.MAP.distSize * 1.5);
     R.centerOn(mid, mid);
-    refreshStats(); requestAnimationFrame(renderLoop); openTutorial(0);
+    refreshStats(); requestAnimationFrame(renderLoop); openDifficulty();
   }
   window.addEventListener("DOMContentLoaded", boot);
 })();

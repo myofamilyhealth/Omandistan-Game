@@ -54,6 +54,25 @@ window.CONFIG = (function () {
     gas:  { name: "Gas",  icon: "🔥", price: 12 },
   };
 
+  // ---- Difficulty (chosen at the start; sets economic difficulty) ---------
+  // income  = multiplier on tax + trade money in.   upkeep = cost multiplier.
+  // pollution = how harshly pollution bites.   immigration = arrival speed.
+  const DIFFICULTY = {
+    easy:   { key: "easy",   label: "Easy",   emoji: "🌱",
+      blurb: "Generous money, light upkeep, gentle pollution, eager immigrants. Great for learning the ropes.",
+      treasury: 4200, love: 20, resources: { wood: 120, oil: 60, gas: 60 },
+      income: 1.35, upkeep: 0.70, pollution: 0.6, immigration: 1.3 },
+    normal: { key: "normal", label: "Normal", emoji: "⚖️",
+      blurb: "A balanced challenge — the intended Omandistan experience.",
+      treasury: 2600, love: 16, resources: { wood: 80, oil: 36, gas: 36 },
+      income: 1.0, upkeep: 1.0, pollution: 1.0, immigration: 1.0 },
+    hard:   { key: "hard",   label: "Hard",   emoji: "🔥",
+      blurb: "Tight budgets, costly upkeep, harsh pollution, slow growth. For seasoned economists.",
+      treasury: 1700, love: 12, resources: { wood: 60, oil: 26, gas: 26 },
+      income: 0.78, upkeep: 1.30, pollution: 1.45, immigration: 0.82 },
+  };
+  const DIFF_ORDER = ["easy", "normal", "hard"];
+
   // ---- Economic reference values -----------------------------------------
   const ECON = {
     food:   { refPrice: 10, perCapita: 1.0,  elasticity: -0.30, farmWage: 5 },
@@ -273,6 +292,6 @@ window.CONFIG = (function () {
           + "<b>Play ▶</b>. Grow your human capital, trade with the world, and build a utopia. Long live Omandistan!" },
   ];
 
-  return { MAP, CASTLE, START, RESOURCES, ECON, TAX, UPGRADE, BUILDINGS, BUILD_ORDER,
-           COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
+  return { MAP, CASTLE, VAULT, START, RESOURCES, DIFFICULTY, DIFF_ORDER, ECON, TAX, UPGRADE,
+           BUILDINGS, BUILD_ORDER, COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
 })();

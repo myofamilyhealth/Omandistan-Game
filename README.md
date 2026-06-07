@@ -168,3 +168,13 @@ grows.
 - **Harder economy.** Lower starting treasury, higher upkeep, thinner trade margins and pollution
   cleanup costs make money genuinely harder to earn.
 - Renamed the gas nation to **CastanoControls** and the tech nation to **GooseGoods**.
+
+## 🎚️ v5 — Difficulty levels & layout fix
+
+- **Choose a difficulty at the start** (🌱 Easy / ⚖️ Normal / 🔥 Hard). It sets the **economic
+  difficulty**: starting money & resources, upkeep costs, income, pollution severity, and how
+  fast immigrants arrive. (Easy ≈ +35% income, light upkeep, gentle pollution; Hard ≈ −22%
+  income, costly upkeep, harsh pollution and slow growth.)
+- **Layout fix:** the side panels no longer jump to the bottom on smaller windows, so the
+  **Utopia Meter no longer overlaps the map** and the **demand bars are always visible**
+  (bottom-right, with the minimap bottom-left). Panels are now opaque.

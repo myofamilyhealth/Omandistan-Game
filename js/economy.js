@@ -76,6 +76,7 @@ window.Economy = (function () {
 
   function tick(state) {
     const E = C.ECON;
+    const D = state.diff || { income: 1, upkeep: 1, pollution: 1, immigration: 1 };  // difficulty
     const pop = state.population;
     const t = tallyBuildings(state);
 
@@ -203,8 +204,8 @@ window.Economy = (function () {
     const pollutionGross = t.pollution;
     const pollution = Math.max(0, pollutionGross - t.green * (P.greenPower / 5));
     const pollutionPerCapita = pop <= 0 ? 0 : pollution / pop;
-    const pollutionPenalty = clamp(pollutionPerCapita * 10 * P.happinessScale, 0, P.perCapitaCap);
-    const cleanupCost = pollution * P.cleanupCost;          // costs the treasury to manage
+    const pollutionPenalty = clamp(pollutionPerCapita * 10 * P.happinessScale * D.pollution, 0, P.perCapitaCap);
+    const cleanupCost = pollution * P.cleanupCost * D.pollution;   // costs the treasury to manage
 
     // ======================================================================
     // TAXES — the Omands act as the FED (countercyclical) unless on manual
@@ -251,7 +252,7 @@ window.Economy = (function () {
     // --- IMMIGRATION (only fills real demand; empty homes stay empty) ------
     let popChange = 0;
     if (happiness >= 55 && housingFree > 0) {
-      popChange = Math.min(housingFree, wantToJoin);
+      popChange = Math.min(housingFree, Math.max(1, Math.round(wantToJoin * D.immigration)));
     } else if (happiness < 38 && pop > 0) {
       popChange = -Math.ceil((1 + pop * 0.03) * ((38 - happiness) / 38));
     }
@@ -275,8 +276,9 @@ window.Economy = (function () {
       bar("gas", "🔥", "Gas", t.produce.gas, t.consume.gas),
     ];
 
-    // --- TREASURY (harder: cleanup cost subtracted) ------------------------
-    const netTreasury = taxRevenue + tradeTreasury - t.upkeep - healthSubsidy - cleanupCost;
+    // --- TREASURY (difficulty: income & upkeep multipliers, cleanup) -------
+    const upkeep = t.upkeep * D.upkeep;
+    const netTreasury = (taxRevenue + tradeTreasury) * D.income - upkeep - healthSubsidy - cleanupCost;
 
     // resources net (production − consumption) folded into the delta for game.js
     const resNet = {
@@ -302,7 +304,7 @@ window.Economy = (function () {
       unrest, utility: t.utility, demand,
       priceIndex, inflation, housing, housingFree, housingRatio, housingDemand, wantToJoin,
       happiness, popChange,
-      treasury: { tax: taxRevenue, upkeep: t.upkeep, subsidy: healthSubsidy, cleanup: cleanupCost, trade: tradeTreasury, net: netTreasury },
+      treasury: { tax: taxRevenue * D.income, upkeep: upkeep, subsidy: healthSubsidy, cleanup: cleanupCost, trade: tradeTreasury * D.income, net: netTreasury },
       lovePerTick: t.lovePerTick,
     };
   }
