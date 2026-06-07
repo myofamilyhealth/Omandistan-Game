@@ -34,15 +34,17 @@ window.CONFIG = (function () {
 
   // The Omand royal castle sits offshore on a sea tile (not player-built).
   const CASTLE = { cx: Math.floor(MAP.cols / 2), cy: 1 };
+  // The national money vault (the Omands' "Federal Reserve") beside the castle.
+  const VAULT = { cx: Math.floor(MAP.cols / 2) + 2, cy: 1 };
 
   // ---- Starting conditions ------------------------------------------------
   const START = {
-    treasury: 4000,
+    treasury: 2600,      // tighter start — money is meant to be hard-won
     loveTokens: 16,
     population: 0,
-    happiness: 74,
+    happiness: 72,
     monthsPerTick: 1,
-    resources: { wood: 90, oil: 45, gas: 45 },   // you need more than money!
+    resources: { wood: 80, oil: 36, gas: 36 },   // you need more than money!
     ownedDistrict: "1,1",                          // start owning the centre area
   };
 
@@ -59,8 +61,11 @@ window.CONFIG = (function () {
               monopolyMarkup: 3.0, publicOptionPrice: 9 },
     goods:  { refPrice: 15, perCapita: 0.55, elasticity: -1.40 },  // retail luxury
     laborForceShare: 0.62,
+    taxBase: 0.16,           // the Omand-Fed's neutral tax rate
     humanCapital: { perCapitaForFullBonus: 0.6, maxOutputBonus: 0.75, happinessBonus: 0.10 },
-    trade: { exportMargin: 6, importPrice: 9, airTourism: 0.8 },
+    trade: { exportMargin: 4, importPrice: 11, airTourism: 0.7 },  // thinner margins
+    // Pollution: industry dirties the air; parks/green space clean it.
+    pollution: { perCapitaCap: 26, happinessScale: 0.9, cleanupCost: 0.6, greenPower: 5 },
   };
 
   // ---- Tax system (player-adjustable) -------------------------------------
@@ -103,15 +108,15 @@ window.CONFIG = (function () {
       color: "#e0894a", category: "Consumption (C)", jobs: 9, goodsOutput: 14, gdpc: "C", res: { wood: 6, gas: 2 },
       desc: "Food service. Adds to CONSUMPTION (C). Needs a little gas to cook." },
 
-    tech: { name: "Tech Park", icon: "💻", cost: 300, love: 1, upkeep: 2.6, height: 0.8,
+    tech: { name: "Tech Park", icon: "💻", cost: 300, love: 1, upkeep: 3.2, height: 0.8,
       color: "#5566cc", category: "Investment (I)", jobs: 16, industrialOutput: 26, gdpc: "I",
-      gdpVal: 60, res: { wood: 8, gas: 4 },
-      desc: "Innovation & capital goods. Adds to INVESTMENT (I) and is highly exportable." },
-    factory: { name: "Factory", icon: "🏭", cost: 240, love: 1, upkeep: 2.4, height: 0.9,
+      gdpVal: 60, pollution: 1.5, res: { wood: 8, gas: 4 },
+      desc: "Innovation & capital goods. Adds to INVESTMENT (I), highly exportable. A little pollution." },
+    factory: { name: "Factory", icon: "🏭", cost: 240, love: 1, upkeep: 3.2, height: 0.9,
       color: "#b08d57", category: "Investment (I)", jobs: 16, industrialOutput: 32, gdpc: "I",
-      gdpVal: 55, res: { wood: 6, oil: 6 },
-      desc: "Heavy industry. Adds to INVESTMENT (I); great for exports. Needs oil." },
-    bank: { name: "Bank", icon: "🏦", cost: 280, love: 1, upkeep: 2, height: 0.85,
+      gdpVal: 55, pollution: 6, res: { wood: 6, oil: 6 },
+      desc: "Heavy industry → INVESTMENT (I), great for exports. But it POLLUTES — too many will anger citizens!" },
+    bank: { name: "Bank", icon: "🏦", cost: 280, love: 1, upkeep: 2.4, height: 0.85,
       color: "#4a8c6a", category: "Investment (I)", jobs: 10, gdpc: "I", gdpVal: 70, res: { wood: 6 },
       desc: "Finance & capital. Boosts INVESTMENT (I) and the wider economy." },
 
@@ -131,28 +136,39 @@ window.CONFIG = (function () {
     lumber: { name: "Lumber Camp", icon: "🪓", cost: 90, love: 1, upkeep: 1, height: 0.4,
       color: "#7a9a4e", category: "Resources", jobs: 6, produces: { wood: 3 }, gdpc: "I", gdpVal: 25, res: {},
       desc: "Forestry operation. Produces 🪵 WOOD each month — you need wood to build." },
-    oilrig: { name: "Oil Derrick", icon: "🛢️", cost: 160, love: 1, upkeep: 1.6, height: 0.7,
-      color: "#3a3a44", category: "Resources", jobs: 8, produces: { oil: 2.6 }, gdpc: "I", gdpVal: 35, res: { wood: 4 },
-      desc: "Pumps 🛢️ OIL each month. Oil powers factories and is valuable in trade." },
-    gasmine: { name: "Gas Mine", icon: "⛏️", cost: 150, love: 1, upkeep: 1.5, height: 0.5,
-      color: "#6a6f78", category: "Resources", jobs: 8, produces: { gas: 2.6 }, gdpc: "I", gdpVal: 32, res: { wood: 4 },
-      desc: "Extracts 🔥 GAS each month. Used by hospitals, restaurants and universities." },
+    oilrig: { name: "Oil Derrick", icon: "🛢️", cost: 160, love: 1, upkeep: 2, height: 0.7,
+      color: "#3a3a44", category: "Resources", jobs: 8, produces: { oil: 2.6 }, gdpc: "I", gdpVal: 35, pollution: 4, res: { wood: 4 },
+      desc: "Pumps 🛢️ OIL each month. Oil powers factories and trade — but it pollutes." },
+    gasmine: { name: "Gas Mine", icon: "⛏️", cost: 150, love: 1, upkeep: 1.9, height: 0.5,
+      color: "#6a6f78", category: "Resources", jobs: 8, produces: { gas: 2.6 }, gdpc: "I", gdpVal: 32, pollution: 3, res: { wood: 4 },
+      desc: "Extracts 🔥 GAS each month. Used by hospitals, restaurants & universities. Pollutes a little." },
 
     port: { name: "Seaport", icon: "🚢", cost: 300, love: 1, upkeep: 2.2, height: 0.5,
       color: "#4a7fa5", category: "Global Trade (X)", jobs: 12, tradeCapacity: 45, gdpc: "X",
       requiresWater: true, unlocksTrade: true, res: { wood: 12 },
       desc: "UNLOCKS global trade by sea and powers NET EXPORTS (Xn). Must be built on the coast." },
-    airport: { name: "Airport", icon: "✈️", cost: 560, love: 1, upkeep: 4.5, height: 0.65,
+    airport: { name: "Airport", icon: "✈️", cost: 560, love: 1, upkeep: 5.5, height: 0.65,
       color: "#8a98a6", category: "Global Trade (X)", jobs: 20, tradeCapacity: 75, gdpc: "X",
-      tourism: true, unlocksTrade: true, res: { wood: 16, oil: 10, gas: 6 },
-      desc: "High-capacity trade + TOURISM income. Also unlocks global trade and boosts Net Exports (Xn)." },
+      tourism: true, unlocksTrade: true, pollution: 3, res: { wood: 16, oil: 10, gas: 6 },
+      desc: "High-capacity trade + TOURISM income. Unlocks global trade and boosts Net Exports (Xn)." },
 
     kindness: { name: "Kindness Center", icon: "💞", cost: 85, love: 0, upkeep: 0.6, height: 0.55,
       color: "#d87fb8", category: "Civic", jobs: 3, lovePerTick: 0.8, gdpc: "G", gdpVal: 12, res: { wood: 4 },
       desc: "Acts of kindness generate Spreading Love tokens over time (no token to build)." },
+
+    // --- Utility / happiness buildings (give citizens "utility") ----------
     park: { name: "Park", icon: "🌳", cost: 30, love: 1, upkeep: 0.3, height: 0.25,
-      color: "#4e9d5b", category: "Amenity", amenity: 6, gdpc: "G", gdpVal: 6, res: { wood: 2 },
-      desc: "Green space. Raises happiness. Public spending (G)." },
+      color: "#4e9d5b", category: "Green", amenity: 5, utility: 3, green: 6, gdpc: "G", gdpVal: 6, res: { wood: 2 },
+      desc: "Green space. Cleans POLLUTION and raises happiness. Public spending (G)." },
+    cinema: { name: "Cinema", icon: "🎬", cost: 150, love: 1, upkeep: 1.6, height: 0.6,
+      color: "#7a4a8c", category: "Utility", jobs: 6, amenity: 4, utility: 7, gdpc: "C", res: { wood: 5 },
+      desc: "Entertainment! Gives citizens UTILITY (happiness) and feeds Consumption (C)." },
+    stadium: { name: "Stadium", icon: "🏟️", cost: 280, love: 1, upkeep: 3, height: 0.7,
+      color: "#5a8c5a", category: "Utility", jobs: 12, amenity: 6, utility: 12, gdpc: "C", res: { wood: 8 },
+      desc: "Big games & crowds — lots of UTILITY (happiness) and Consumption (C)." },
+    themepark: { name: "Theme Park", icon: "🎢", cost: 380, love: 1, upkeep: 4.5, height: 0.7,
+      color: "#e05a8c", category: "Utility", jobs: 16, amenity: 8, utility: 20, gdpc: "C", res: { wood: 10 },
+      desc: "The ultimate UTILITY: huge happiness boost & tourism, and major Consumption (C). Keeps citizens content." },
   };
 
   const BUILD_ORDER = [
@@ -161,7 +177,8 @@ window.CONFIG = (function () {
     "tech", "factory", "bank",
     "lumber", "oilrig", "gasmine",
     "hospital", "school", "university",
-    "port", "airport", "kindness", "park",
+    "port", "airport", "kindness",
+    "park", "cinema", "stadium", "themepark",
   ];
 
   // ---- Building upgrades --------------------------------------------------
@@ -190,12 +207,12 @@ window.CONFIG = (function () {
       blurb: "Rolling evergreen forests as far as the eye can see. The realm of timber.",
       specialty: "wood", endow: { wood: 9, oil: 1, gas: 2 }, wants: ["oil", "gas", "tech"],
       ppc: 64, island: { x: 0.82, y: 0.24 } },
-    cindara: { name: "Cindara", flag: "🔥", color: "#9a5a2a",
+    cindara: { name: "CastanoControls", flag: "🔥", color: "#9a5a2a",
       blurb: "Geysers and gas fields light the night. Energy-rich but hungry for goods.",
       specialty: "gas", endow: { wood: 2, oil: 3, gas: 9 }, wants: ["wood", "food", "tech"],
       ppc: 70, island: { x: 0.20, y: 0.78 } },
-    technova: { name: "Technova", flag: "💡", color: "#4658b0",
-      blurb: "A glittering tech metropolis. Brilliant engineers, but few raw resources.",
+    technova: { name: "GooseGoods", flag: "🪿", color: "#4658b0",
+      blurb: "A glittering manufacturing hub of clever engineers — rich, but short on raw resources.",
       specialty: "tech", endow: { wood: 2, oil: 2, gas: 2 }, wants: ["wood", "oil", "gas"],
       ppc: 88, island: { x: 0.80, y: 0.74 } },
   };
@@ -240,8 +257,13 @@ window.CONFIG = (function () {
           + "you can change the <b>tax system</b> any time." },
     { title: "🌍 Step 3 — The world & trade",
       body: "Build a <b>Seaport 🚢</b> to unlock <b>global trade</b>. Open the <b>World Map 🌍</b> to visit "
-          + "<b>Elliott Emperace</b> (oil), <b>Wardmania</b> (wood), <b>Cindara</b> (gas) and <b>Technova</b> (tech). "
+          + "<b>Elliott Emperace</b> (oil), <b>Wardmania</b> (wood), <b>CastanoControls</b> (gas) and <b>GooseGoods</b> (tech). "
           + "Propose trades — they only accept deals that <b>expand their PPC</b>. You can also set <b>tariffs</b>." },
+    { title: "😊 Step 4 — Keep citizens happy",
+      body: "Watch the <b>Demand bars</b> (bottom-right): build what people actually want — empty houses or "
+          + "unsold goods help no one. Too many <b>factories 🏭</b> cause <b>pollution</b> and anger; offset it with "
+          + "<b>Parks 🌳</b>. Give people <b>utility</b> with <b>Cinemas 🎬, Stadiums 🏟️ and Theme Parks 🎢</b>. "
+          + "Unhappy citizens <b>protest</b>! The <b>Omands act as the Fed</b> — they raise taxes in a boom and cut them in a slump." },
     { title: "⬆️ Upgrade & grow",
       body: "Use the <b>⬆️ Upgrade</b> tool and click any building to <b>level it up</b> (★ → ★★ → ★★★). "
           + "Each level boosts its output &amp; jobs and gives it a <b>bigger graphic</b> — especially markets and "

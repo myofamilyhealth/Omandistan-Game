@@ -24,12 +24,23 @@ window.Economy = (function () {
   }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+  // Monthly resource consumption (operating inputs) — creates real demand for
+  // wood/oil/gas so "whatever is in demand should be produced/built".
+  const CONSUME = {
+    house: { wood: 0.02 }, grocery: { wood: 0.02 }, clothing: { wood: 0.02 },
+    restaurant: { gas: 0.25 }, factory: { oil: 0.5, wood: 0.05 }, tech: { oil: 0.25, gas: 0.1 },
+    hospital: { gas: 0.3 }, university: { gas: 0.2 }, airport: { oil: 0.4 },
+    cinema: { gas: 0.1 }, stadium: { gas: 0.15 }, themepark: { gas: 0.25, oil: 0.1 },
+  };
+
   function tallyBuildings(state) {
     const t = {
       housing: 0, foodOutput: 0, retailOutput: 0, healthCapacity: 0, industrialOutput: 0,
-      jobs: 0, amenity: 0, lovePerTick: 0, upkeep: 0, humanCapital: 0,
-      tradeCapacity: 0, airCapacity: 0, gdpI: 0, gdpG: 0,
-      produce: { wood: 0, oil: 0, gas: 0 }, farms: 0, tradeUnlocked: false, counts: {},
+      jobs: 0, amenity: 0, utility: 0, lovePerTick: 0, upkeep: 0, humanCapital: 0,
+      tradeCapacity: 0, airCapacity: 0, gdpI: 0, gdpG: 0, gdpC: 0,
+      pollution: 0, green: 0,
+      produce: { wood: 0, oil: 0, gas: 0 }, consume: { wood: 0, oil: 0, gas: 0 },
+      farms: 0, tradeUnlocked: false, counts: {},
     };
     const U = C.UPGRADE;
     for (const b of state.buildings) {
@@ -45,6 +56,9 @@ window.Economy = (function () {
       t.healthCapacity += (def.healthCapacity || 0) * m;
       t.jobs += (def.jobs || 0) * jm;
       t.amenity += (def.amenity || 0) * m;
+      t.utility += (def.utility || 0) * m;
+      t.pollution += (def.pollution || 0) * m;
+      t.green += (def.green || 0) * m;
       t.lovePerTick += (def.lovePerTick || 0) * m;
       t.upkeep += (def.upkeep || 0) * (1 + (lv - 1) * 0.5);  // bigger buildings cost more
       t.humanCapital += (def.humanCapital || 0) * m;
@@ -54,6 +68,7 @@ window.Economy = (function () {
       if (def.gdpc === "I") t.gdpI += (def.gdpVal || 0) * m;
       if (def.gdpc === "G" && b.type !== "hospital") t.gdpG += (def.gdpVal || 0) * m;
       if (def.produces) for (const r in def.produces) t.produce[r] += def.produces[r] * m;
+      if (CONSUME[b.type]) for (const r in CONSUME[b.type]) t.consume[r] += CONSUME[b.type][r] * m;
       if (b.type === "farm") t.farms++;
     }
     return t;
@@ -161,7 +176,8 @@ window.Economy = (function () {
     // ======================================================================
     // GDP = C + I + G + Xn
     // ======================================================================
-    const Cexp = farmRevenue + goodsSold * goodsPrice + (healthRegulated ? 0 : healthRevenue);
+    const entertainmentC = t.utility * 2.4 * productivity * activity;   // cinemas/stadiums/parks spending
+    const Cexp = farmRevenue + goodsSold * goodsPrice + (healthRegulated ? 0 : healthRevenue) + entertainmentC;
     const Iexp = (t.gdpI * productivity) * activity + industrialOut * 0.6;
     const Gexp = (t.gdpG * productivity) + (healthRegulated ? healthRevenue : 0) + healthSubsidy;
     const gdp = Math.max(0, Cexp + Iexp + Gexp + Xn);
@@ -175,45 +191,103 @@ window.Economy = (function () {
     const housing = t.housing;
     const housingRatio = housing <= 0 ? 0 : clamp(housing >= pop ? 1 : housing / Math.max(1, pop), 0, 1);
     const housingFree = Math.max(0, housing - pop);
+    // Pent-up housing demand: how many newcomers WANT to move in right now.
+    const wantToJoin = (pop > 0 || housing > 0)
+      ? Math.max(0, Math.ceil((2 + pop * 0.05) * ((Math.max(50, state.happiness) - 50) / 50))) : 0;
+    const housingDemand = pop + wantToJoin;
 
     // ======================================================================
-    // TAXES (player-adjustable)
+    // POLLUTION — industry dirties the air; parks/green clean it
     // ======================================================================
+    const P = E.pollution;
+    const pollutionGross = t.pollution;
+    const pollution = Math.max(0, pollutionGross - t.green * (P.greenPower / 5));
+    const pollutionPerCapita = pop <= 0 ? 0 : pollution / pop;
+    const pollutionPenalty = clamp(pollutionPerCapita * 10 * P.happinessScale, 0, P.perCapitaCap);
+    const cleanupCost = pollution * P.cleanupCost;          // costs the treasury to manage
+
+    // ======================================================================
+    // TAXES — the Omands act as the FED (countercyclical) unless on manual
+    // ======================================================================
+    // Economic "heat": >0 booming/overheating, <0 slump. Low unemployment and
+    // rising prices = boom (raise taxes); high unemployment = slump (cut taxes).
+    const NU = 0.05;                                        // natural rate of unemployment
+    let heat = 0;
+    if (pop >= 20) heat = clamp((NU - unemployment) * 6 + inflation * 4 + (state.happiness - 72) / 45, -1, 1);
+    const autoTarget = clamp(E.taxBase + heat * 0.12, 0.04, 0.32);
+    const fedStance = heat > 0.2 ? "Contractionary" : heat < -0.2 ? "Expansionary" : "Neutral";
+
     const taxRate = state.policies.tax.rate;
     const progressive = state.policies.tax.mode === "progressive";
-    const taxBase = Cexp + Iexp + Math.max(0, Xn);
-    const taxRevenue = taxBase * taxRate;
-    let taxPenalty = taxRate * 26;                    // happiness cost of taxation
-    if (progressive) taxPenalty *= 0.6;               // fairer ⇒ less resentment
+    const taxBaseAmt = Cexp + Iexp + Math.max(0, Xn);
+    const taxRevenue = taxBaseAmt * taxRate;
+    let taxPenalty = taxRate * 30;                          // happiness cost of taxation
+    if (progressive) taxPenalty *= 0.62;
 
     // ======================================================================
-    // HAPPINESS
+    // HAPPINESS  (+ utility buildings, − pollution, − taxes)
     // ======================================================================
-    const amenityRatio = pop <= 0 ? 1 : clamp(t.amenity / pop, 0, 1);
+    const amenityRatio = pop <= 0 ? 1 : clamp((t.amenity + t.utility * 0.8) / pop, 0, 1);
     const employmentScore = laborForce <= 0 ? 1 : (1 - unemployment);
     const priceStability = clamp(1 - Math.abs(inflation) * 4, 0, 1);
     let happiness = 100 * (
-      foodAccess * 0.23 + healthAccess * 0.17 + housingRatio * 0.15 +
-      employmentScore * 0.16 + amenityRatio * 0.09 + priceStability * 0.08 +
+      foodAccess * 0.22 + healthAccess * 0.16 + housingRatio * 0.14 +
+      employmentScore * 0.15 + amenityRatio * 0.13 + priceStability * 0.08 +
       hcUtil * HC.happinessBonus
-    ) - taxPenalty;
-    if (pop < 12) happiness = Math.max(happiness, 62);
+    ) - taxPenalty - pollutionPenalty;
+    if (pop < 12) happiness = Math.max(happiness, 60);
     happiness = clamp(happiness, 0, 100);
 
-    // --- IMMIGRATION -------------------------------------------------------
+    // ======================================================================
+    // UNREST — citizens get angry at pollution, high taxes, joblessness,
+    // shortages. High unrest → protests (handled in game loop).
+    // ======================================================================
+    const unrest = clamp(
+      (1 - foodAccess) * 32 + (1 - healthAccess) * 22 +
+      unemployment * 38 + pollutionPenalty * 1.4 +
+      Math.max(0, taxRate - 0.18) * 200 +
+      Math.max(0, 50 - happiness) * 0.5, 0, 100);
+
+    // --- IMMIGRATION (only fills real demand; empty homes stay empty) ------
     let popChange = 0;
     if (happiness >= 55 && housingFree > 0) {
-      popChange = Math.min(housingFree, Math.ceil((2 + pop * 0.04) * ((happiness - 55) / 45)));
+      popChange = Math.min(housingFree, wantToJoin);
     } else if (happiness < 38 && pop > 0) {
       popChange = -Math.ceil((1 + pop * 0.03) * ((38 - happiness) / 38));
     }
 
-    // --- TREASURY ----------------------------------------------------------
-    const netTreasury = taxRevenue + tradeTreasury - t.upkeep - healthSubsidy;
+    // ======================================================================
+    // DEMAND BARS — supply vs. demand for what citizens want & resources
+    // ======================================================================
+    function bar(key, icon, label, supply, demand) {
+      const ratio = demand <= 0.01 ? (supply > 0 ? 2 : 1) : supply / demand;
+      const status = ratio < 0.9 ? "short" : ratio > 1.35 ? "surplus" : "ok";
+      return { key, icon, label, supply, demand, ratio, status };
+    }
+    const demand = [
+      bar("housing", "🏠", "Housing", housing, housingDemand),
+      bar("food", "🌾", "Food", foodOut, foodD0),
+      bar("goods", "🛒", "Goods", retailOut, goodsD0),
+      bar("health", "🏥", "Healthcare", healthCap, healthD0),
+      bar("fun", "🎢", "Fun/Utility", t.utility, pop * 0.25),
+      bar("wood", "🪵", "Wood", t.produce.wood, t.consume.wood),
+      bar("oil", "🛢️", "Oil", t.produce.oil, t.consume.oil),
+      bar("gas", "🔥", "Gas", t.produce.gas, t.consume.gas),
+    ];
+
+    // --- TREASURY (harder: cleanup cost subtracted) ------------------------
+    const netTreasury = taxRevenue + tradeTreasury - t.upkeep - healthSubsidy - cleanupCost;
+
+    // resources net (production − consumption) folded into the delta for game.js
+    const resNet = {
+      wood: resDelta.wood + t.produce.wood - t.consume.wood,
+      oil: resDelta.oil + t.produce.oil - t.consume.oil,
+      gas: resDelta.gas + t.produce.gas - t.consume.gas,
+    };
 
     return {
       tally: t, productivity, humanCapital: t.humanCapital, hcUtil,
-      resources: { production: t.produce, delta: resDelta, stalled },
+      resources: { production: t.produce, consumption: t.consume, delta: resDelta, net: resNet, stalled },
       food: { price: foodPrice, supply: foodOut, demand: foodD0, sold: foodConsumed, access: foodAccess, farmProfit },
       health: { price: healthPrice, served: healthServed, demand: healthD0, access: healthAccess,
                 regulated: healthRegulated, dwl: healthDWL, subsidy: healthSubsidy },
@@ -222,10 +296,13 @@ window.Economy = (function () {
       trade: { unlocked: tradeUnlocked, capacity: t.tradeCapacity, exportValue, importValue,
                tourismIncome, tariffRevenue, net: tradeTreasury, Xn },
       labor: { force: laborForce, jobs, employed, unemployment },
-      tax: { rate: taxRate, mode: state.policies.tax.mode, revenue: taxRevenue, penalty: taxPenalty },
-      priceIndex, inflation, housing, housingFree, housingRatio,
+      tax: { rate: taxRate, mode: state.policies.tax.mode, revenue: taxRevenue, penalty: taxPenalty,
+             auto: !!state.policies.tax.auto, autoTarget, heat, stance: fedStance },
+      pollution: { level: pollution, gross: pollutionGross, perCapita: pollutionPerCapita, penalty: pollutionPenalty, cleanup: cleanupCost },
+      unrest, utility: t.utility, demand,
+      priceIndex, inflation, housing, housingFree, housingRatio, housingDemand, wantToJoin,
       happiness, popChange,
-      treasury: { tax: taxRevenue, upkeep: t.upkeep, subsidy: healthSubsidy, trade: tradeTreasury, net: netTreasury },
+      treasury: { tax: taxRevenue, upkeep: t.upkeep, subsidy: healthSubsidy, cleanup: cleanupCost, trade: tradeTreasury, net: netTreasury },
       lovePerTick: t.lovePerTick,
     };
   }

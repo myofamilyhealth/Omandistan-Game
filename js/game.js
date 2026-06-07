@@ -19,7 +19,7 @@
     buildings: [], grid: [],
     ownedDistricts: { [C.START.ownedDistrict]: true },
     month: 0, lastPriceIndex: 0,
-    policies: { publicHealth: false, tax: { rate: startTax.rate, mode: startTax.mode, id: startTax.id } },
+    policies: { publicHealth: false, tax: { rate: C.ECON.taxBase, mode: "flat", id: "auto", auto: true } },
     tariffs: { elliott: 0, wardmania: 0, cindara: 0, technova: 0 },
     trade: { deals: [] },
     countryPPC: {},
@@ -29,7 +29,7 @@
   for (let r = 0; r < C.MAP.rows; r++) state.grid.push(new Array(C.MAP.cols).fill(null));
 
   let selectedType = null, hover = null, speedIndex = 0, tickTimer = null, pendingLove = 0;
-  let canvas, minimap, mmCtx;
+  let canvas, minimap, mmCtx, lastStance = "Neutral";
 
   function log(msg, kind) {
     const el = $("log"); const line = document.createElement("div");
@@ -199,8 +199,19 @@
     state.population = Math.max(0, state.population + s.popChange);
     state.happiness = s.happiness;
     state.lastPriceIndex = s.priceIndex;
-    // resources: extraction + trade flows
-    for (const r in state.resources) state.resources[r] = Math.max(0, state.resources[r] + (s.resources.production[r] || 0) + (s.resources.delta[r] || 0));
+    // resources: extraction − consumption + trade flows
+    for (const r in state.resources) state.resources[r] = Math.max(0, state.resources[r] + (s.resources.net[r] || 0));
+    // The Omands run countercyclical fiscal policy (the "Fed"): ease the tax
+    // rate toward the target — raise it in a boom, cut it in a slump.
+    if (state.policies.tax.auto) {
+      state.policies.tax.rate += (s.tax.autoTarget - state.policies.tax.rate) * 0.3;
+      state.policies.tax.mode = state.policies.tax.rate > 0.22 ? "progressive" : "flat";
+      if (s.tax.stance !== lastStance && state.population >= 20) {
+        if (s.tax.stance === "Contractionary") log("🏛️ Boom detected — the Omands RAISE taxes to cool the economy.", "info");
+        else if (s.tax.stance === "Expansionary") log("🏛️ Slump detected — the Omands CUT taxes to spur spending.", "info");
+        lastStance = s.tax.stance;
+      }
+    }
     // love tokens
     pendingLove += s.lovePerTick;
     if (pendingLove >= 1) { const w = Math.floor(pendingLove); state.loveTokens += w; pendingLove -= w; }
@@ -213,8 +224,41 @@
     if (s.popChange > 0) log(`+${s.popChange} immigrants arrived (happiness ${Math.round(s.happiness)}). 🧳`, "good");
     else if (s.popChange < 0) log(`${s.popChange} citizens emigrated. 📉`, "warn");
     if (state.treasury < 0) log("⚠️ Treasury is in the red!", "warn");
+    if (s.pollution.perCapita > 1.4 && Math.random() < 0.25) log("🏭 Smog hangs over the country — citizens are coughing. Build Parks 🌳!", "warn");
     maybeEvent();
+    maybeProtest(s);
     refreshStats();
+  }
+
+  // ---- Protests (citizens get angry at the government) --------------------
+  function maybeProtest(s) {
+    if (eventOpen || state.population < 12 || s.unrest < 60) return;
+    if (Math.random() > 0.28) return;
+    let cause = "the cost of living", fix = "fund relief";
+    if (s.pollution.perCapita > 1.2) { cause = "the choking pollution"; fix = "fund a clean-up"; }
+    else if (s.tax.rate > 0.24) { cause = "crushing taxes"; fix = "offer tax rebates"; }
+    else if (s.labor.unemployment > 0.12) { cause = "the lack of jobs"; fix = "fund a jobs program"; }
+    else if (s.food.access < 0.85) { cause = "food shortages"; fix = "import emergency food"; }
+    eventOpen = true; setSpeed(0);
+    const cost = Math.round(60 + state.population * 1.2);
+    const m = $("modal");
+    m.innerHTML = `<div class="card"><h2>😠 Citizens are protesting!</h2>
+      <p>Crowds fill the streets, angry about <b>${cause}</b>. Unrest is at <b>${Math.round(s.unrest)}/100</b>.
+      Mr. &amp; Mrs. Omand ask how you will respond.</p>
+      <p class="cost">Address it: ${money(cost)} (calms the people, +5 happiness). Ignore it: lose 2 💞 and −6 happiness.</p>
+      <div class="row"><button id="prFix" class="btn primary">${fix} (${money(cost)})</button>
+      <button id="prIgnore" class="btn">Ignore them</button></div></div>`;
+    m.classList.add("show");
+    $("prFix").onclick = () => {
+      if (state.treasury < cost) { log("Not enough money to address the protest!", "warn"); }
+      else { state.treasury -= cost; state.happiness = Math.min(100, state.happiness + 5); log("You addressed the protest — tensions ease. 🕊️", "good"); flashOmand("Wise leadership calms the people. 🕊️"); }
+      closeEvent();
+    };
+    $("prIgnore").onclick = () => {
+      state.loveTokens = Math.max(0, state.loveTokens - 2); state.happiness = Math.max(0, state.happiness - 6);
+      log("You ignored the protest — anger grows. 😠 (−2 💞, −6 happiness)", "warn"); flashOmand("The people feel unheard…");
+      closeEvent();
+    };
   }
 
   // ---- Events -------------------------------------------------------------
@@ -283,16 +327,36 @@
              <div>Tariff rev ${money(s.trade.tariffRevenue)} · Tourism ${money(s.trade.tourismIncome)} · Net ${money(s.trade.net)}/mo</div>`
           : `<div class="hint">No global trade yet.</div>`}
       </div>
-      <div class="dgroup"><h4>🏛️ Taxes & Macro</h4>
-        <div>Tax: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> → ${money(s.tax.revenue)}/mo <span class="hint">(−${s.tax.penalty.toFixed(0)} happiness)</span></div>
-        <div>Inflation ${(s.inflation*100).toFixed(1)}% · Jobs ${s.labor.jobs}/${s.labor.force} · Housing free ${Math.round(s.housingFree)}</div>
+      <div class="dgroup"><h4>🏛️ The Omand Fed</h4>
+        <div>Tax: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> ${s.tax.auto ? '<span class="hint">(auto)</span>' : '<span class="hint">(manual)</span>'} → ${money(s.tax.revenue)}/mo</div>
+        <div>Stance: <b class="${s.tax.stance==='Expansionary'?'pos':s.tax.stance==='Contractionary'?'neg':''}">${s.tax.stance}</b> · Inflation ${(s.inflation*100).toFixed(1)}%</div>
+      </div>
+      <div class="dgroup"><h4>🏭 Pollution & 😠 Unrest</h4>
+        <div>Pollution: <b class="${s.pollution.penalty>6?'neg':s.pollution.level>0?'':'pos'}">${s.pollution.level.toFixed(1)}</b> <span class="hint">(−${s.pollution.penalty.toFixed(0)} happiness, cleanup ${money(s.pollution.cleanup)}/mo)</span></div>
+        <div>Unrest: <b class="${s.unrest>60?'neg':s.unrest>35?'':'pos'}">${Math.round(s.unrest)}/100</b> ${s.unrest>60?'😠 protests likely!':s.unrest>35?'😐':'🙂'}</div>
       </div>`;
 
     const meter = $("happyfill");
     meter.style.width = Math.round(state.happiness) + "%";
     meter.style.background = state.happiness > 66 ? "#4e9d5b" : state.happiness > 40 ? "#d9a441" : "#cc5b5b";
     drawMinimap();
+    renderDemand(s);
     if (inspect) renderInspect();   // keep the open inspector's numbers fresh
+  }
+
+  // ---- Demand bars (bottom-right) -----------------------------------------
+  function renderDemand(s) {
+    const el = $("demand"); if (!el) return;
+    const word = { short: "Build more!", ok: "Balanced", surplus: "Surplus" };
+    const rows = s.demand.map((d) => {
+      const fill = Math.max(4, Math.min(100, (d.demand <= 0.01 ? (d.supply > 0 ? 100 : 8) : d.supply / d.demand * 100)));
+      return `<div class="dmrow">
+        <span class="dmico">${d.icon}</span>
+        <div class="dmbarwrap"><div class="dmbar ${d.status}" style="width:${fill}%"></div></div>
+        <span class="dmtag ${d.status}">${word[d.status]}</span></div>`;
+    }).join("");
+    el.innerHTML = `<div class="dmtitle">📊 Citizen Demand</div>${rows}
+      <div class="dmhint">Build what's <b class="neg">short</b>; <b class="neg">surplus</b> sits idle.</div>`;
   }
   function setChip(id, val) { const el = $(id); if (el) el.textContent = val; }
 
@@ -338,26 +402,33 @@
   }
   function openTax() {
     setSpeed(0);
-    const cur = state.policies.tax;
-    const opts = C.TAX.presets.map((p) => `<button class="taxbtn ${p.id === cur.id ? "on" : ""}" data-id="${p.id}">${p.label}<br><span class="sub">${p.mode}</span></button>`).join("");
-    $("dialog").innerHTML = `<div class="card"><h2>🏛️ Tax System</h2>
-      <p>The Omands let you set Omandistan's taxes. Higher rates fund more <b>Government (G)</b> spending and fill the treasury, but lower happiness. <b>Progressive</b> taxes feel fairer, so they cost less happiness than a flat tax at the same rate.</p>
-      <div class="taxgrid">${opts}</div>
-      <p class="cost" id="taxinfo"></p>
-      <div class="row"><button id="taxClose" class="btn primary">Done</button></div></div>`;
-    $("dialog").classList.add("show");
-    function refreshTaxInfo() {
+    function render() {
+      const cur = state.policies.tax, auto = !!cur.auto;
       const s = E.tick(state);
-      $("taxinfo").innerHTML = `Now: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> → revenue ${money(s.tax.revenue)}/mo, happiness −${s.tax.penalty.toFixed(0)}.`;
+      const opts = C.TAX.presets.map((p) => `<button class="taxbtn ${(!auto && p.id === cur.id) ? "on" : ""}" ${auto ? "disabled" : ""} data-id="${p.id}">${p.label}<br><span class="sub">${p.mode}</span></button>`).join("");
+      $("dialog").innerHTML = `<div class="card"><h2>🏛️ Fiscal Policy — The Omand Fed</h2>
+        <p>Mr. &amp; Mrs. Omand run Omandistan's <b>fiscal &amp; monetary policy</b> from their money vault.
+        On <b>Auto (Fed)</b> they act as <b>automatic stabilizers</b>: in a <b>boom</b> they <b>raise taxes</b> to cool things down,
+        and in a <b>slump</b> they <b>cut taxes</b> so people spend more.</p>
+        <button id="taxAuto" class="decree ${auto ? "on" : ""}">${auto ? "🏛️ Omand Auto-Fed: ON (countercyclical)" : "🏛️ Omand Auto-Fed: OFF (you set taxes)"}</button>
+        <div class="taxstance">Current: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> · Stance <b class="${s.tax.stance==='Expansionary'?'pos':s.tax.stance==='Contractionary'?'neg':''}">${s.tax.stance}</b> → ${money(s.tax.revenue)}/mo</div>
+        ${auto ? '<p class="hint">Turn Auto off to set taxes manually.</p>' : `<div class="taxgrid">${opts}</div>`}
+        <div class="row"><button id="taxClose" class="btn primary">Done</button></div></div>`;
+      $("dialog").classList.add("show");
+      $("taxAuto").onclick = () => {
+        state.policies.tax.auto = !state.policies.tax.auto;
+        if (!state.policies.tax.auto) state.policies.tax.id = "flat15";
+        flashOmand(state.policies.tax.auto ? "The Omand Fed takes the wheel. 🏛️" : "You command the treasury now.");
+        render(); refreshStats();
+      };
+      if (!auto) $("dialog").querySelectorAll(".taxbtn").forEach((b) => b.onclick = () => {
+        const p = C.TAX.presets.find((x) => x.id === b.dataset.id);
+        state.policies.tax = { rate: p.rate, mode: p.mode, id: p.id, auto: false };
+        flashOmand("Tax decree updated. 🏛️"); render(); refreshStats();
+      });
+      $("taxClose").onclick = () => { $("dialog").classList.remove("show"); setSpeed(1); };
     }
-    $("dialog").querySelectorAll(".taxbtn").forEach((b) => b.onclick = () => {
-      const p = C.TAX.presets.find((x) => x.id === b.dataset.id);
-      state.policies.tax = { rate: p.rate, mode: p.mode, id: p.id };
-      $("dialog").querySelectorAll(".taxbtn").forEach((x) => x.classList.toggle("on", x === b));
-      flashOmand("Tax decree updated. 🏛️"); refreshTaxInfo(); refreshStats();
-    });
-    $("taxClose").onclick = () => { $("dialog").classList.remove("show"); setSpeed(1); };
-    refreshTaxInfo();
+    render();
   }
 
   // ---- World map + fast travel --------------------------------------------

@@ -117,8 +117,8 @@ A big update layered on top of the core sim:
   with a specialty:
   - **Elliott Emperace 🛢️** — oil
   - **Wardmania 🌲** — wood
-  - **Cindara 🔥** — gas
-  - **Technova 💡** — technology (resource-poor but rich)
+  - **CastanoControls 🔥** — gas
+  - **GooseGoods 🪿** — technology (resource-poor but rich)
 - **PPC-based trade.** Build a **Seaport** to unlock trade, then propose recurring deals. A
   country **only accepts a deal that expands its own PPC** — it values what it lacks and
   discounts what it has in plenty (comparative advantage & gains from trade in action).
@@ -144,3 +144,27 @@ and a rooftop penthouse, factories gain more smokestacks, farms gain silos and a
 parks gain towers, and so on. Upgrades cost money, resources and 1 💞 (Omand approval), with the
 price rising at each level. Great for scaling up your **markets and production** as the country
 grows.
+
+## 📊 v4 — Demand, the Omand Fed, pollution & utility
+
+- **Citizen demand bars (bottom-right).** Live supply-vs-demand bars for Housing, Food, Goods,
+  Healthcare, Fun/Utility and Wood/Oil/Gas. Red = **shortage (build more!)**, green = balanced,
+  blue = **surplus**. If you overbuild housing with no demand, the homes sit **empty** — build
+  what people actually want.
+- **Resources are consumed**, not just spent at construction: factories burn oil, restaurants/
+  hospitals/universities use gas, etc. — so resource demand is real and you must keep extracting.
+- **The Omands are the Fed.** They run **countercyclical fiscal policy** automatically: in a boom
+  (low unemployment / rising prices) they **raise taxes** to cool things; in a slump they **cut
+  taxes** so people spend. A **Fed stance** (Expansionary/Neutral/Contractionary) is shown. Open
+  **🏛️ Fiscal Policy** to toggle Auto-Fed off and set taxes yourself. A **money vault** sits beside
+  the castle.
+- **Pollution.** Factories, oil derricks, gas mines and airports **pollute**. Pollution lowers
+  happiness, adds a cleanup cost, and shows as **smog** over the map. **Parks 🌳** clean the air.
+- **Citizens get angry.** An **unrest** meter rises with pollution, high taxes, joblessness and
+  shortages; when it's high, citizens **protest** and you must respond (spend to calm them, or
+  ignore them and lose happiness & love).
+- **Utility buildings.** Give citizens happiness ("utility") with **🎬 Cinema, 🏟️ Stadium and
+  🎢 Theme Park** (which also feed Consumption, C).
+- **Harder economy.** Lower starting treasury, higher upkeep, thinner trade margins and pollution
+  cleanup costs make money genuinely harder to earn.
+- Renamed the gas nation to **CastanoControls** and the tech nation to **GooseGoods**.

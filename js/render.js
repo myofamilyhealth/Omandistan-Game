@@ -275,6 +275,23 @@ window.Render = (function () {
     poly([project(p, 0.45, 0.95, 0.18), project(p, 0.55, 0.95, 0.18), project(p, 0.55, 0.95, 0.55), project(p, 0.45, 0.95, 0.55)], "#3a3530");
   }
 
+  // --- The Omands' money vault (their "Federal Reserve") -------------------
+  function drawVault(cx, cy) {
+    const p = tileToScreen(cx, cy);
+    poly([project(p, 0, 0, 0), project(p, 1, 0, 0), project(p, 1, 1, 0), project(p, 0, 1, 0)], "#7a746a", "#5d584f");
+    box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.7, "#8f96a0");          // steel vault body
+    box(p, 0.2, 0.2, 0.8, 0.8, 0.7, 0.78, "#cbb24a");       // gold cap
+    // round vault door on the front
+    const d = project(p, 0.5, 0.8, 0.36);
+    ctx.fillStyle = "#5f6671"; ctx.beginPath(); ctx.arc(d.x, d.y, 9, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#cbb24a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(d.x, d.y, 9, 0, 7); ctx.stroke();
+    ctx.fillStyle = "#cbb24a"; ctx.font = "bold 11px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", d.x, d.y);
+    // gold bars stacked on the roof
+    box(p, 0.34, 0.36, 0.5, 0.46, 0.78, 0.9, "#e7c659"); box(p, 0.52, 0.36, 0.68, 0.46, 0.78, 0.9, "#e7c659");
+    box(p, 0.43, 0.36, 0.59, 0.46, 0.9, 1.02, "#f0d572");
+    flag(p, 0.5, 0.2, 0.78, "#d8b24a");
+  }
+
   // --- Cars driving on the road network ------------------------------------
   const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
   const CARCOLORS = ["#d94f4f", "#4f7fd9", "#e0b84f", "#5fb56a", "#8a5fd9", "#e0e0e0", "#3a3a40"];
@@ -362,6 +379,7 @@ window.Render = (function () {
         diamond(cx, cy, fill, "rgba(0,0,0,0.05)");
 
         if (cx === castle.cx && cy === castle.cy) { drawCastle(cx, cy); continue; }
+        if (C.VAULT && cx === C.VAULT.cx && cy === C.VAULT.cy) { drawVault(cx, cy); continue; }
         const b = state.grid[cy] && state.grid[cy][cx];
         if (b) {
           if (b.type === "road") roadTile(cx, cy);
@@ -377,6 +395,13 @@ window.Render = (function () {
     }
 
     drawCars();
+
+    // smog overlay when pollution is high
+    if (state.stats && state.stats.pollution && state.stats.pollution.perCapita > 0.5) {
+      const a = Math.min(0.28, (state.stats.pollution.perCapita - 0.5) * 0.12);
+      ctx.fillStyle = `rgba(110,104,92,${a})`;
+      ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    }
 
     // hover highlight + ghost
     if (hover && hover.cx >= 0 && hover.cy >= 0 && hover.cx < cols && hover.cy < rows) {
