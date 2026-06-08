@@ -178,3 +178,20 @@ grows.
 - **Layout fix:** the side panels no longer jump to the bottom on smaller windows, so the
   **Utopia Meter no longer overlaps the map** and the **demand bars are always visible**
   (bottom-right, with the minimap bottom-left). Panels are now opaque.
+
+## 🏗️ v6 — The VIP investor, water & power
+
+- **The Guy Who Knows Things** (real name **Alan Tu** 🧐) visits **once a year** and inspects
+  Omandistan, scoring it 0–100 on happiness, economy per person, calm (low unrest), water &
+  power coverage, clean air, public services and population. Score **≥82** and he makes a **major
+  investment** (a big cash injection + love + happiness); **≥70** earns modest seed money; below
+  that he leaves unimpressed. It's deliberately **hard** — you have to build a genuinely thriving
+  country.
+- **Water systems.** 🚰 **Water Plants** treat water and pipe it **underground** to everyone.
+  Citizens and farms need water — shortages hurt happiness and stoke unrest.
+- **Power systems.** Generate electricity with ⚡ **Power Plants** (cheap but polluting), ☀️ **Solar
+  Fields** and 🌬️ **Wind Turbines** (clean), and ☢️ **Nuclear Plants** (huge clean-air output, costly,
+  slightly feared). Lay 🗼 **Power Lines** to strengthen the grid. **Brownouts cut production** when
+  power demand outstrips supply.
+- **Water 💧 and Power ⚡ join the demand bars**, and their coverage shows in the stats panel and
+  feeds the VIP's inspection score.

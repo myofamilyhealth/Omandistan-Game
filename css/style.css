@@ -264,3 +264,15 @@ aside h3:first-child { margin-top: 0; }
 .diffemoji { grid-row: 1 / 3; font-size: 26px; align-self: center; text-align: center; }
 .diffbtn b { font-size: 14px; color: #6b531a; }
 .diffbtn span { font-size: 11px; color: #5a6b5c; line-height: 1.4; }
+
+/* VIP investor card */
+.vipcard { max-width: 440px; text-align: center; }
+.vip-portrait { font-size: 46px; }
+.vipcard h2 { text-align: center; }
+.vip-real { font-size: 12px; color: #5a6b5c; margin-bottom: 8px; }
+.vip-score { font-size: 14px; background: #f3efe4; border-radius: 8px; padding: 6px; margin-bottom: 8px; }
+.vip-verdict { font-style: italic; font-size: 13px; }
+.vip-verdict.good { color: #2f7e44; } .vip-verdict.warn { color: #b4541f; }
+.vip-breakdown { text-align: left; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px;
+  font-size: 12px; background: #fbf8f0; border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.vip-invest { font-size: 14px; font-weight: 700; }

@@ -32,13 +32,25 @@ window.Economy = (function () {
     hospital: { gas: 0.3 }, university: { gas: 0.2 }, airport: { oil: 0.4 },
     cinema: { gas: 0.1 }, stadium: { gas: 0.15 }, themepark: { gas: 0.25, oil: 0.1 },
   };
+  // Electricity used per building (besides per-capita demand from homes).
+  const POWER_USE = {
+    factory: 7, tech: 5, hospital: 4, university: 3, airport: 6, bank: 2,
+    grocery: 2, clothing: 2, restaurant: 2, cinema: 2, stadium: 3, themepark: 5,
+    lumber: 2, oilrig: 3, gasmine: 3, waterplant: 3,
+  };
+  // Water used per building (besides per-capita demand).
+  const WATER_USE = {
+    farm: 4, restaurant: 1.5, hospital: 2, university: 1.5, themepark: 3, stadium: 2,
+    park: 1, grocery: 0.5, clothing: 0.5, powerplant: 1.5, nuclear: 3,
+  };
 
   function tallyBuildings(state) {
     const t = {
       housing: 0, foodOutput: 0, retailOutput: 0, healthCapacity: 0, industrialOutput: 0,
       jobs: 0, amenity: 0, utility: 0, lovePerTick: 0, upkeep: 0, humanCapital: 0,
       tradeCapacity: 0, airCapacity: 0, gdpI: 0, gdpG: 0, gdpC: 0,
-      pollution: 0, green: 0,
+      pollution: 0, green: 0, fearUnrest: 0,
+      powerCap: 0, waterCap: 0, gridBonus: 0, powerUse: 0, waterUse: 0,
       produce: { wood: 0, oil: 0, gas: 0 }, consume: { wood: 0, oil: 0, gas: 0 },
       farms: 0, tradeUnlocked: false, counts: {},
     };
@@ -59,6 +71,12 @@ window.Economy = (function () {
       t.utility += (def.utility || 0) * m;
       t.pollution += (def.pollution || 0) * m;
       t.green += (def.green || 0) * m;
+      t.fearUnrest += (def.unrest || 0) * m;
+      t.powerCap += (def.powerCapacity || 0) * m;
+      t.waterCap += (def.waterCapacity || 0) * m;
+      t.gridBonus += (def.gridBonus || 0) * m;
+      if (POWER_USE[b.type]) t.powerUse += POWER_USE[b.type] * m;
+      if (WATER_USE[b.type]) t.waterUse += WATER_USE[b.type] * m;
       t.lovePerTick += (def.lovePerTick || 0) * m;
       t.upkeep += (def.upkeep || 0) * (1 + (lv - 1) * 0.5);  // bigger buildings cost more
       t.humanCapital += (def.humanCapital || 0) * m;
@@ -86,10 +104,20 @@ window.Economy = (function () {
     const hcUtil = clamp(hcPerCapita / HC.perCapitaForFullBonus, 0, 1);
     const productivity = 1 + HC.maxOutputBonus * hcUtil;
 
-    const foodOut = t.foodOutput * productivity;
-    const retailOut = t.retailOutput * productivity;
-    const healthCap = t.healthCapacity * productivity;
-    const industrialOut = t.industrialOutput * productivity;
+    // --- UTILITIES: water & power (brownouts cut production) ---------------
+    const UT = E.utilities;
+    const powerDemand = pop * UT.perCapitaPower + t.powerUse;
+    const powerSupply = UT.powerBase + t.powerCap + t.gridBonus;
+    const powerCoverage = powerDemand <= 0.01 ? 1 : clamp(powerSupply / powerDemand, 0, 1);
+    const waterDemand = pop * UT.perCapitaWater + t.waterUse;
+    const waterSupply = UT.waterBase + t.waterCap;
+    const waterCoverage = waterDemand <= 0.01 ? 1 : clamp(waterSupply / waterDemand, 0, 1);
+    const infraFactor = 0.55 + 0.45 * powerCoverage;       // no power ⇒ 55% production
+
+    const foodOut = t.foodOutput * productivity * infraFactor;
+    const retailOut = t.retailOutput * productivity * infraFactor;
+    const healthCap = t.healthCapacity * productivity * infraFactor;
+    const industrialOut = t.industrialOutput * productivity * infraFactor;
 
     // --- FOOD: perfect competition (Consumption) ---------------------------
     const foodD0 = pop * E.food.perCapita;
@@ -231,11 +259,14 @@ window.Economy = (function () {
     const amenityRatio = pop <= 0 ? 1 : clamp((t.amenity + t.utility * 0.8) / pop, 0, 1);
     const employmentScore = laborForce <= 0 ? 1 : (1 - unemployment);
     const priceStability = clamp(1 - Math.abs(inflation) * 4, 0, 1);
+    const waterPenalty = (1 - waterCoverage) * UT.shortHappiness;
+    const powerPenalty = (1 - powerCoverage) * UT.shortHappiness * 0.8;
     let happiness = 100 * (
-      foodAccess * 0.22 + healthAccess * 0.16 + housingRatio * 0.14 +
-      employmentScore * 0.15 + amenityRatio * 0.13 + priceStability * 0.08 +
+      foodAccess * 0.20 + healthAccess * 0.15 + housingRatio * 0.13 +
+      employmentScore * 0.14 + amenityRatio * 0.12 + priceStability * 0.07 +
+      waterCoverage * 0.05 + powerCoverage * 0.04 +
       hcUtil * HC.happinessBonus
-    ) - taxPenalty - pollutionPenalty;
+    ) - taxPenalty - pollutionPenalty - waterPenalty - powerPenalty;
     if (pop < 12) happiness = Math.max(happiness, 60);
     happiness = clamp(happiness, 0, 100);
 
@@ -246,6 +277,7 @@ window.Economy = (function () {
     const unrest = clamp(
       (1 - foodAccess) * 32 + (1 - healthAccess) * 22 +
       unemployment * 38 + pollutionPenalty * 1.4 +
+      (1 - waterCoverage) * 20 + (1 - powerCoverage) * 15 + t.fearUnrest +
       Math.max(0, taxRate - 0.18) * 200 +
       Math.max(0, 50 - happiness) * 0.5, 0, 100);
 
@@ -270,6 +302,8 @@ window.Economy = (function () {
       bar("food", "🌾", "Food", foodOut, foodD0),
       bar("goods", "🛒", "Goods", retailOut, goodsD0),
       bar("health", "🏥", "Healthcare", healthCap, healthD0),
+      bar("water", "💧", "Water", waterSupply, waterDemand),
+      bar("power", "⚡", "Power", powerSupply, powerDemand),
       bar("fun", "🎢", "Fun/Utility", t.utility, pop * 0.25),
       bar("wood", "🪵", "Wood", t.produce.wood, t.consume.wood),
       bar("oil", "🛢️", "Oil", t.produce.oil, t.consume.oil),
@@ -301,6 +335,7 @@ window.Economy = (function () {
       tax: { rate: taxRate, mode: state.policies.tax.mode, revenue: taxRevenue, penalty: taxPenalty,
              auto: !!state.policies.tax.auto, autoTarget, heat, stance: fedStance },
       pollution: { level: pollution, gross: pollutionGross, perCapita: pollutionPerCapita, penalty: pollutionPenalty, cleanup: cleanupCost },
+      utilities: { powerSupply, powerDemand, powerCoverage, waterSupply, waterDemand, waterCoverage, infraFactor },
       unrest, utility: t.utility, demand,
       priceIndex, inflation, housing, housingFree, housingRatio, housingDemand, wantToJoin,
       happiness, popChange,

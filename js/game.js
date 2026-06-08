@@ -39,6 +39,7 @@
   }
   const money = (x) => "$" + Math.round(x).toLocaleString();
   const pct = (x) => Math.round(x * 100) + "%";
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   // ---- Build helpers ------------------------------------------------------
   function adjRoad(cx, cy) {
@@ -228,7 +229,54 @@
     if (s.pollution.perCapita > 1.4 && Math.random() < 0.25) log("🏭 Smog hangs over the country — citizens are coughing. Build Parks 🌳!", "warn");
     maybeEvent();
     maybeProtest(s);
+    maybeVIP(s);
     refreshStats();
+  }
+
+  // ---- The VIP investor: "The Guy Who Knows Things" (Alan Tu) -------------
+  function vipScore(s) {
+    const pop = state.population, happ = state.happiness;
+    const popScore = clamp(pop / 200 * 100, 0, 100);
+    const gdpScore = clamp((s.gdp / Math.max(1, pop)) / 40 * 100, 0, 100);
+    const calm = 100 - s.unrest;
+    const power = s.utilities.powerCoverage * 100, water = s.utilities.waterCoverage * 100;
+    const clean = clamp(100 - s.pollution.penalty * 4, 0, 100);
+    const services = clamp((s.health.access * 0.5 + s.hcUtil * 0.3 + Math.min(1, s.utility / Math.max(1, pop * 0.25)) * 0.2) * 100, 0, 100);
+    const score = Math.round(happ * 0.26 + popScore * 0.12 + gdpScore * 0.16 + calm * 0.12 +
+                             power * 0.08 + water * 0.08 + clean * 0.08 + services * 0.10);
+    const line = (label, val) => { const ok = val >= 70; return `<div class="${ok ? "pos" : "neg"}">${ok ? "✓" : "✗"} ${label}: ${Math.round(val)}/100</div>`; };
+    const lines = [line("Happiness", happ), line("Economy per person", gdpScore), line("Calm (low unrest)", calm),
+      line("Water & power", (power + water) / 2), line("Clean air", clean), line("Public services", services), line("Population", popScore)];
+    return { score, lines };
+  }
+  function maybeVIP(s) {
+    if (eventOpen || state.month === 0 || state.month % 12 !== 0 || state.population < 20) return;
+    eventOpen = true; setSpeed(0);
+    const v = vipScore(s), V = C.VIP;
+    let invest = 0, bonus = 0, love = 0, verdict, kind;
+    if (v.score >= V.bigScore) { invest = Math.round(s.gdp * 5 + 3000); bonus = 4; love = 3;
+      verdict = `"Omandistan is the real deal. I've seen a thousand cities — this one's special. I'm investing big."`; kind = "good"; }
+    else if (v.score >= V.okScore) { invest = Math.round(s.gdp * 2 + 800);
+      verdict = `"Promising work. Here's some seed money — keep it up and I'll be back."`; kind = "info"; }
+    else { verdict = `"Not yet. I don't put my money into struggling towns. Fix the fundamentals and call me next year."`; kind = "warn"; }
+    if (invest) state.treasury += invest;
+    if (bonus) state.happiness = Math.min(100, state.happiness + bonus);
+    if (love) state.loveTokens += love;
+    const m = $("modal");
+    m.innerHTML = `<div class="card vipcard">
+      <div class="vip-portrait">${V.emoji}</div>
+      <h2>${V.media}</h2>
+      <div class="vip-real">a.k.a. <b>${V.name}</b> · Year ${Math.floor(state.month / 12)} inspection</div>
+      <div class="vip-score">Inspection score: <b>${v.score}</b> / 100 <span class="hint">(needs ${V.bigScore}+ for a major investment)</span></div>
+      <p class="vip-verdict ${kind}">${verdict}</p>
+      <div class="vip-breakdown">${v.lines.join("")}</div>
+      ${invest ? `<p class="vip-invest pos">💰 He invests <b>${money(invest)}</b>${love ? ` and gives <b>${love} 💞</b>` : ""}${bonus ? `, +${bonus} happiness` : ""}!</p>`
+               : `<p class="vip-invest neg">💸 No investment this year.</p>`}
+      <div class="row"><button id="vipOk" class="btn primary">Continue</button></div></div>`;
+    m.classList.add("show");
+    log(`${V.media} inspected Omandistan: ${v.score}/100 — ${invest ? money(invest) + " invested! 💰" : "no investment."}`, invest ? "good" : "warn");
+    flashOmand(invest ? "A famous investor backs Omandistan! 💰" : "The investor left unimpressed…");
+    $("vipOk").onclick = closeEvent;
   }
 
   // ---- Protests (citizens get angry at the government) --------------------
@@ -331,6 +379,10 @@
       <div class="dgroup"><h4>🏛️ The Omand Fed</h4>
         <div>Tax: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> ${s.tax.auto ? '<span class="hint">(auto)</span>' : '<span class="hint">(manual)</span>'} → ${money(s.tax.revenue)}/mo</div>
         <div>Stance: <b class="${s.tax.stance==='Expansionary'?'pos':s.tax.stance==='Contractionary'?'neg':''}">${s.tax.stance}</b> · Inflation ${(s.inflation*100).toFixed(1)}%</div>
+      </div>
+      <div class="dgroup"><h4>💧 Water & ⚡ Power</h4>
+        <div>Water: <b class="${s.utilities.waterCoverage<0.95?'neg':'pos'}">${pct(s.utilities.waterCoverage)}</b> covered (${Math.round(s.utilities.waterSupply)}/${Math.round(s.utilities.waterDemand)})</div>
+        <div>Power: <b class="${s.utilities.powerCoverage<0.95?'neg':'pos'}">${pct(s.utilities.powerCoverage)}</b> covered (${Math.round(s.utilities.powerSupply)}/${Math.round(s.utilities.powerDemand)}) ${s.utilities.powerCoverage<0.95?'⚡ brownouts cut output!':''}</div>
       </div>
       <div class="dgroup"><h4>🏭 Pollution & 😠 Unrest</h4>
         <div>Pollution: <b class="${s.pollution.penalty>6?'neg':s.pollution.level>0?'':'pos'}">${s.pollution.level.toFixed(1)}</b> <span class="hint">(−${s.pollution.penalty.toFixed(0)} happiness, cleanup ${money(s.pollution.cleanup)}/mo)</span></div>

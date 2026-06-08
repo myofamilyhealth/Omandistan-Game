@@ -248,6 +248,55 @@ window.Render = (function () {
       poly([project(p, 0.32, 0.55, 0.16), project(p, 0.4, 0.55, 0.16), project(p, 0.4, 0.8, 0.16), project(p, 0.32, 0.8, 0.16)], "#d6dde4");
       box(p, 0.5, 0.63, 0.56, 0.69, 0.2, 0.34, "#cdd6de");
     },
+    waterplant(p, def, cx, cy) {
+      box(p, 0.14, 0.5, 0.5, 0.86, 0, 0.4, shade(def.color, jit(cx, cy)));      // pump house
+      // two cylindrical-ish water tanks
+      box(p, 0.56, 0.18, 0.74, 0.36, 0, 0.55, "#7fc0e6"); pyramid(p, 0.54, 0.16, 0.76, 0.38, 0.55, 0.14, "#5a9ec8");
+      box(p, 0.56, 0.46, 0.74, 0.64, 0, 0.5, "#7fc0e6"); pyramid(p, 0.54, 0.44, 0.76, 0.66, 0.5, 0.13, "#5a9ec8");
+      const s = project(p, 0.32, 0.68, 0.5); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("💧", s.x, s.y);
+    },
+    powerplant(p, def, cx, cy) {
+      box(p, 0.14, 0.22, 0.84, 0.82, 0, 0.7, shade(def.color, jit(cx, cy)));
+      box(p, 0.58, 0.26, 0.7, 0.38, 0.7, 1.4, "#55585e"); box(p, 0.72, 0.26, 0.84, 0.38, 0.7, 1.25, "#55585e");
+      const s = project(p, 0.64, 0.32, 1.45); ctx.fillStyle = "rgba(120,120,120,0.8)";
+      ctx.beginPath(); ctx.arc(s.x, s.y, 7, 0, 7); ctx.arc(s.x + 6, s.y - 4, 5, 0, 7); ctx.fill();
+      const b = project(p, 0.3, 0.55, 0.75); ctx.fillStyle = "#f2d24a"; ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("⚡", b.x, b.y);
+    },
+    solar(p, def, cx, cy) {
+      box(p, 0.05, 0.05, 0.95, 0.95, 0, 0.05, "#3a4a5a");                        // dark field
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {                   // tilted blue panels
+        const u = 0.18 + c * 0.28, v = 0.18 + r * 0.28;
+        poly([project(p, u - 0.1, v + 0.06, 0.05), project(p, u + 0.1, v + 0.06, 0.05),
+              project(p, u + 0.1, v - 0.06, 0.22), project(p, u - 0.1, v - 0.06, 0.22)], "#4a7fd8");
+      }
+    },
+    wind(p, def, cx, cy) {
+      box(p, 0.46, 0.46, 0.54, 0.54, 0, 1.3, "#e8eef2");                          // pole
+      const hub = project(p, 0.5, 0.5, 1.35);
+      ctx.strokeStyle = "#dfe6ea"; ctx.lineWidth = 3;
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 + waveT * 0.5;
+        ctx.beginPath(); ctx.moveTo(hub.x, hub.y); ctx.lineTo(hub.x + Math.cos(a) * 16, hub.y + Math.sin(a) * 11); ctx.stroke(); }
+      ctx.fillStyle = "#cdd6dc"; ctx.beginPath(); ctx.arc(hub.x, hub.y, 2.5, 0, 7); ctx.fill();
+    },
+    nuclear(p, def, cx, cy) {
+      box(p, 0.12, 0.55, 0.46, 0.88, 0, 0.45, shade(def.color, jit(cx, cy)));     // reactor hall
+      box(p, 0.34, 0.62, 0.5, 0.78, 0.45, 0.62, "#aeb8a8"); const dome = project(p, 0.42, 0.7, 0.62);
+      ctx.fillStyle = "#9aa694"; ctx.beginPath(); ctx.arc(dome.x, dome.y - 4, TW * 0.1, Math.PI, 0); ctx.fill();
+      // cooling tower (waisted) + steam
+      box(p, 0.56, 0.2, 0.86, 0.5, 0, 0.95, "#d6dcd0");
+      pyramid(p, 0.56, 0.2, 0.86, 0.5, 0.95, -0.18, "#c2cab8");                    // slight inward cap
+      const s = project(p, 0.71, 0.35, 1.0); ctx.fillStyle = "rgba(240,240,240,0.85)";
+      ctx.beginPath(); ctx.arc(s.x, s.y, 9, 0, 7); ctx.arc(s.x + 7, s.y - 6, 6, 0, 7); ctx.fill();
+      const a = project(p, 0.28, 0.72, 0.7); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("☢️", a.x, a.y);
+    },
+    powerline(p, def, cx, cy) {
+      // lattice pylon: two legs + crossarms + a top
+      box(p, 0.4, 0.4, 0.45, 0.45, 0, 1.5, "#8a9098"); box(p, 0.55, 0.55, 0.6, 0.6, 0, 1.5, "#8a9098");
+      box(p, 0.4, 0.55, 0.45, 0.6, 0, 1.5, "#8a9098"); box(p, 0.55, 0.4, 0.6, 0.45, 0, 1.5, "#8a9098");
+      box(p, 0.3, 0.47, 0.7, 0.53, 1.0, 1.06, "#9aa0a8");                          // crossarm
+      box(p, 0.47, 0.3, 0.53, 0.7, 1.2, 1.26, "#9aa0a8");
+      pyramid(p, 0.38, 0.38, 0.62, 0.62, 1.5, 0.2, "#7e858d");
+    },
     kindness(p, def, cx, cy) {
       box(p, 0.22, 0.22, 0.78, 0.78, 0, 0.6, shade(def.color, jit(cx, cy))); box(p, 0.22, 0.22, 0.78, 0.78, 0.6, 0.66, "#b85a98");
       heart(project(p, 0.5, 0.5, 1.05), 11, "#e0539b"); windowsV1(p, 0.78, [0.38, 0.62], 0.2, 0.45, "#fff0f8");

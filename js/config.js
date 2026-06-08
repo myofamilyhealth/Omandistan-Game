@@ -85,6 +85,17 @@ window.CONFIG = (function () {
     trade: { exportMargin: 4, importPrice: 11, airTourism: 0.7 },  // thinner margins
     // Pollution: industry dirties the air; parks/green space clean it.
     pollution: { perCapitaCap: 26, happinessScale: 0.9, cleanupCost: 0.6, greenPower: 5 },
+    // Utilities: citizens & industry need WATER and POWER. Small towns have a
+    // little baseline supply; as you grow you must build plants.
+    utilities: { powerBase: 9, waterBase: 11, perCapitaPower: 0.12, perCapitaWater: 0.18, shortHappiness: 18 },
+  };
+
+  // ---- The VIP investor ---------------------------------------------------
+  // "The Guy Who Knows Things" (Alan Tu) visits once a year and inspects the
+  // city. He only invests if Omandistan is genuinely impressive — it's hard.
+  const VIP = {
+    name: "Alan Tu", media: "The Guy Who Knows Things", emoji: "🧐",
+    bigScore: 82, okScore: 70,        // ≥82 = major investment, ≥70 = modest
   };
 
   // ---- Tax system (player-adjustable) -------------------------------------
@@ -175,6 +186,26 @@ window.CONFIG = (function () {
       color: "#d87fb8", category: "Civic", jobs: 3, lovePerTick: 0.8, gdpc: "G", gdpVal: 12, res: { wood: 4 },
       desc: "Acts of kindness generate Spreading Love tokens over time (no token to build)." },
 
+    // --- Utilities: WATER & POWER (citizens and industry need both) -------
+    waterplant: { name: "Water Plant", icon: "🚰", cost: 260, love: 1, upkeep: 2.4, height: 0.5,
+      color: "#4a9ad0", category: "Water", jobs: 8, waterCapacity: 80, gdpc: "G", gdpVal: 20, res: { wood: 8 },
+      desc: "Treats water and pipes it UNDERGROUND across the country. Everyone needs water!" },
+    powerplant: { name: "Power Plant", icon: "⚡", cost: 300, love: 1, upkeep: 3.5, height: 0.8,
+      color: "#6a6f78", category: "Power", jobs: 12, powerCapacity: 60, pollution: 7, gdpc: "I", gdpVal: 30, res: { wood: 8, gas: 4 },
+      desc: "Cheap fossil-fuel electricity — but it POLLUTES heavily. Cleaner options exist." },
+    solar: { name: "Solar Field", icon: "☀️", cost: 340, love: 1, upkeep: 2, height: 0.18,
+      color: "#3a5a8c", category: "Power", jobs: 5, powerCapacity: 40, gdpc: "I", gdpVal: 25, res: { wood: 6 },
+      desc: "CLEAN solar electricity — zero pollution. Needs sun-soaked land." },
+    wind: { name: "Wind Turbine", icon: "🌬️", cost: 200, love: 1, upkeep: 1.4, height: 1.4,
+      color: "#eef3f6", category: "Power", jobs: 3, powerCapacity: 22, gdpc: "I", gdpVal: 15, res: { wood: 5 },
+      desc: "CLEAN, quiet wind power. Moderate output, no pollution." },
+    nuclear: { name: "Nuclear Plant", icon: "☢️", cost: 900, love: 2, upkeep: 8, height: 1.0,
+      color: "#cdd6c8", category: "Power", jobs: 25, powerCapacity: 180, unrest: 6, gdpc: "I", gdpVal: 70, res: { wood: 18, gas: 8 },
+      desc: "ENORMOUS clean-air power, but very costly — and some citizens fear it (a little unrest)." },
+    powerline: { name: "Power Lines", icon: "🗼", cost: 8, love: 0, upkeep: 0.1, height: 0.9,
+      color: "#9aa0a8", category: "Utilities", noRoadNeeded: true, gridBonus: 2, res: {},
+      desc: "Pylons carrying electricity across the land. Each one strengthens the grid. Pre-approved (no token)." },
+
     // --- Utility / happiness buildings (give citizens "utility") ----------
     park: { name: "Park", icon: "🌳", cost: 30, love: 1, upkeep: 0.3, height: 0.25,
       color: "#4e9d5b", category: "Green", amenity: 5, utility: 3, green: 6, gdpc: "G", gdpVal: 6, res: { wood: 2 },
@@ -196,8 +227,9 @@ window.CONFIG = (function () {
     "tech", "factory", "bank",
     "lumber", "oilrig", "gasmine",
     "hospital", "school", "university",
-    "port", "airport", "kindness",
-    "park", "cinema", "stadium", "themepark",
+    "port", "airport",
+    "waterplant", "powerplant", "solar", "wind", "nuclear", "powerline",
+    "kindness", "park", "cinema", "stadium", "themepark",
   ];
 
   // ---- Building upgrades --------------------------------------------------
@@ -280,9 +312,15 @@ window.CONFIG = (function () {
           + "Propose trades — they only accept deals that <b>expand their PPC</b>. You can also set <b>tariffs</b>." },
     { title: "😊 Step 4 — Keep citizens happy",
       body: "Watch the <b>Demand bars</b> (bottom-right): build what people actually want — empty houses or "
-          + "unsold goods help no one. Too many <b>factories 🏭</b> cause <b>pollution</b> and anger; offset it with "
-          + "<b>Parks 🌳</b>. Give people <b>utility</b> with <b>Cinemas 🎬, Stadiums 🏟️ and Theme Parks 🎢</b>. "
-          + "Unhappy citizens <b>protest</b>! The <b>Omands act as the Fed</b> — they raise taxes in a boom and cut them in a slump." },
+          + "unsold goods help no one. Everyone needs <b>💧 Water</b> (🚰 Water Plants) and <b>⚡ Power</b> "
+          + "(⚡ Power Plants, ☀️ Solar, 🌬️ Wind, ☢️ Nuclear + 🗼 Power Lines) — brownouts cut production! Too many "
+          + "<b>factories 🏭</b> cause <b>pollution</b>; offset it with <b>Parks 🌳</b> and give <b>utility</b> with "
+          + "<b>Cinemas 🎬, Stadiums 🏟️, Theme Parks 🎢</b>. Unhappy citizens <b>protest</b>!" },
+    { title: "🧐 The Guy Who Knows Things",
+      body: "Once a year, the legendary investor <b>The Guy Who Knows Things</b> (a.k.a. <b>Alan Tu</b>) visits and "
+          + "<b>inspects Omandistan</b>. If your country is genuinely impressive — happy, clean, well-powered, thriving — "
+          + "he'll <b>invest a fortune</b>. It's hard to win him over, so build well! The <b>Omands act as the Fed</b>, "
+          + "raising taxes in a boom and cutting them in a slump." },
     { title: "⬆️ Upgrade & grow",
       body: "Use the <b>⬆️ Upgrade</b> tool and click any building to <b>level it up</b> (★ → ★★ → ★★★). "
           + "Each level boosts its output &amp; jobs and gives it a <b>bigger graphic</b> — especially markets and "
@@ -292,6 +330,6 @@ window.CONFIG = (function () {
           + "<b>Play ▶</b>. Grow your human capital, trade with the world, and build a utopia. Long live Omandistan!" },
   ];
 
-  return { MAP, CASTLE, VAULT, START, RESOURCES, DIFFICULTY, DIFF_ORDER, ECON, TAX, UPGRADE,
+  return { MAP, CASTLE, VAULT, START, RESOURCES, DIFFICULTY, DIFF_ORDER, ECON, TAX, UPGRADE, VIP,
            BUILDINGS, BUILD_ORDER, COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
 })();
