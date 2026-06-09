@@ -502,7 +502,11 @@
       <div class="world-map">${islands}<div class="sea-lines"></div></div></div>`;
     $("world").classList.add("show");
     $("worldClose").onclick = () => { $("world").classList.remove("show"); setSpeed(1); };
-    $("world").querySelectorAll(".world-island").forEach((b) => b.onclick = () => openTrade(b.dataset.c));
+    // Clicking a country closes the world map and jumps straight to its trade menu.
+    $("world").querySelectorAll(".world-island").forEach((b) => b.onclick = () => {
+      $("world").classList.remove("show");
+      openTrade(b.dataset.c);
+    });
   }
 
   // ---- Trade with a country -----------------------------------------------
