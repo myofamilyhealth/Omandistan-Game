@@ -306,6 +306,41 @@ window.Render = (function () {
       const pa = project(p, 0.1, 0.9, 0), pb = project(p, 0.9, 0.55, 0);
       ctx.lineWidth = 3; ctx.strokeStyle = "#caa46a"; ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
     },
+    cinema(p, def, cx, cy) {
+      box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.62, shade(def.color, jit(cx, cy)));
+      box(p, 0.18, 0.2, 0.82, 0.96, 0.5, 0.66, "#4a2e5c");                 // marquee overhang
+      windowsV1(p, 0.96, [0.3, 0.42, 0.54, 0.66], 0.5, 0.64, "#ffe27a");   // marquee bulbs
+      const s = project(p, 0.5, 0.4, 1.02); ctx.font = "14px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🎬", s.x, s.y);
+    },
+    stadium(p, def, cx, cy) {
+      diamond(cx, cy, "#6aae6a", "#4e9d5b");
+      const c = project(p, 0.5, 0.5, 0.18);
+      ctx.fillStyle = shade(def.color, jit(cx, cy));
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, TW * 0.42, TH * 0.7, 0, 0, 7); ctx.fill();   // bowl
+      ctx.lineWidth = 4; ctx.strokeStyle = shade(def.color, -0.22);
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, TW * 0.42, TH * 0.7, 0, 0, 7); ctx.stroke();  // stands rim
+      ctx.fillStyle = "#5fa85f";
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, TW * 0.26, TH * 0.42, 0, 0, 7); ctx.fill();    // pitch
+      ctx.strokeStyle = "#eef6ee"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c.x, c.y - TH * 0.42); ctx.lineTo(c.x, c.y + TH * 0.42); ctx.stroke();
+      const s = project(p, 0.5, 0.5, 0.9); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏟️", s.x, s.y);
+    },
+    themepark(p, def, cx, cy) {
+      diamond(cx, cy, "#7bbf6e", "#4e9d5b");
+      // ferris wheel
+      const c = project(p, 0.34, 0.4, 0.62);
+      box(p, 0.32, 0.38, 0.36, 0.42, 0, 0.62, "#9a9aa0");                  // hub support
+      ctx.strokeStyle = "#d0455f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(c.x, c.y, 14, 0, 7); ctx.stroke();
+      for (let k = 0; k < 8; k++) { const a = k * 0.785 + waveT * 0.25;
+        ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(a) * 14, c.y + Math.sin(a) * 14); ctx.stroke(); }
+      ctx.fillStyle = "#f2c14a";
+      for (let k = 0; k < 8; k++) { const a = k * 0.785 + waveT * 0.25;
+        ctx.beginPath(); ctx.arc(c.x + Math.cos(a) * 14, c.y + Math.sin(a) * 14, 2.6, 0, 7); ctx.fill(); }
+      // striped circus tent
+      box(p, 0.55, 0.52, 0.82, 0.8, 0, 0.3, "#e0894a");
+      pyramid(p, 0.53, 0.5, 0.84, 0.82, 0.3, 0.32, "#e85d5d");
+      const s = project(p, 0.7, 0.18, 0.7); ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🎢", s.x, s.y);
+    },
   };
 
   // --- The Omand royal castle (offshore) -----------------------------------
