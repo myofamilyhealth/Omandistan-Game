@@ -170,6 +170,81 @@
   }
   function closeInspect() { inspect = null; const el = $("inspect"); if (el) el.classList.remove("show"); }
 
+  // ---- Top-bar stat info popups (click a stat to learn & get tips) --------
+  const STAT_INFO = {
+    "c-treasury": { icon: "💰", title: "Treasury",
+      what: "Your nation's bank balance. It rises with tax revenue and trade, and falls from building upkeep, subsidies and pollution cleanup.",
+      tips: ["Build commerce & industry (shops, factories) to grow GDP, which the Omands tax.",
+             "Open a Seaport and export your surplus for cash.",
+             "Don't overbuild — empty buildings still cost upkeep every month."] },
+    "c-love": { icon: "💞", title: "Spreading Love Tokens",
+      what: "The Omands' approval currency. Every building and upgrade needs 1 to be approved.",
+      tips: ["Build Kindness Centers 💞 — they generate love over time.",
+             "Say YES to events that help struggling neighbours.",
+             "Run low? Do acts of kindness before building again."] },
+    "c-pop": { icon: "🧑‍🤝‍🧑", title: "Population",
+      what: "How many citizens live in Omandistan. More people means more workers and a bigger economy.",
+      tips: ["Build Housing 🏠 — immigrants only arrive if there are empty homes.",
+             "Keep happiness high (≥55) so people want to move in.",
+             "Meet demand for food, water, power and healthcare as you grow."] },
+    "c-happy": { icon: "😊", title: "Happiness (Utopia Meter)",
+      what: "How content your citizens are (0–100). It drives immigration — happy countries grow, unhappy ones shrink.",
+      tips: ["Watch the Demand bars — build what's short (food, housing, healthcare, water, power).",
+             "Add Parks 🌳 and fun: Cinemas 🎬, Stadiums 🏟️, Theme Parks 🎢.",
+             "Cut pollution and keep taxes reasonable."] },
+    "c-gdp": { icon: "💵", title: "GDP (per month)",
+      what: "Total output by the expenditure approach: GDP = C + I + G + Xn (Consumption + Investment + Government + Net Exports).",
+      tips: ["Consumption (C): shops 🛒👕🍔. Investment (I): factories 🏭, tech 💻, banks 🏦.",
+             "Government (G): schools, hospitals, parks. Net Exports (Xn): trade via ports/airports.",
+             "Raise productivity with Schools 🏫 & Universities 🎓 to get more from the same buildings."] },
+    "c-prod": { icon: "🎓", title: "PPC (Productivity)",
+      what: "Your production multiplier from human capital. Higher = the same farms and factories produce MORE — an outward shift of your Production Possibilities Curve.",
+      tips: ["Build Schools 🏫 and Universities 🎓 to raise human capital.",
+             "Keep the power on — brownouts cut production.",
+             "It scales with education per person, so grow schooling as population grows."] },
+    "c-unemp": { icon: "💼", title: "Unemployment",
+      what: "The share of the labor force (≈62% of people) without a job. High unemployment lowers happiness and stirs unrest.",
+      tips: ["Build job-creating places: factories, shops, farms, offices.",
+             "Balance jobs with population — too few jobs = unemployment, too few people = labor shortage.",
+             "Industry and commerce create the most jobs."] },
+    "c-date": { icon: "📅", title: "Date",
+      what: "The in-game calendar (each tick is one month). Some things happen on a yearly cycle.",
+      tips: ["The investor 🧐 Alan Tu inspects your country once a year.",
+             "Use the speed buttons (top-right) or Space to pause/play time.",
+             "Plan ahead — upkeep and trade happen every month."] },
+    "r-wood": { icon: "🪵", title: "Wood",
+      what: "A building resource, also consumed slowly by upkeep. You can't construct most things without it.",
+      tips: ["Build Lumber Camps 🪓 to produce wood each month.",
+             "Watch the Wood demand bar — red means you're using more than you make.",
+             "Trade with Wardmania 🌲 (the wood specialists) for extra."] },
+    "r-oil": { icon: "🛢️", title: "Oil",
+      what: "Powers factories and is valuable in trade. Factories and airports burn it each month.",
+      tips: ["Build Oil Derricks 🛢️ to pump oil.",
+             "Trade with Elliott Emperace (the oil state) for a steady supply.",
+             "Oil derricks pollute — offset with Parks 🌳."] },
+    "r-gas": { icon: "🔥", title: "Gas",
+      what: "Used by hospitals, restaurants, universities and gas power plants each month.",
+      tips: ["Build Gas Mines ⛏️ to extract gas.",
+             "Trade with CastanoControls 🔥 (the gas specialists).",
+             "Keep an eye on the Gas demand bar so services don't run dry."] },
+  };
+  function openStatInfo(id, anchor) {
+    const info = STAT_INFO[id]; if (!info) return;
+    const el = $("statinfo");
+    const val = $(id) ? $(id).textContent : "";
+    el.innerHTML = `<div class="si-head"><span>${info.icon} ${info.title}</span><button id="siClose" class="ins-x">✕</button></div>
+      <div class="si-now">Now: <b>${val}</b></div>
+      <div class="si-what">${info.what}</div>
+      <div class="si-tipt">How to improve it:</div>
+      <ul class="si-tips">${info.tips.map((t) => `<li>${t}</li>`).join("")}</ul>`;
+    el.classList.add("show");
+    const r = anchor.getBoundingClientRect(), w = 260;
+    el.style.left = clamp(r.left, 8, window.innerWidth - w - 8) + "px";
+    el.style.top = (r.bottom + 6) + "px";
+    $("siClose").onclick = closeStatInfo;
+  }
+  function closeStatInfo() { const el = $("statinfo"); if (el) el.classList.remove("show"); }
+
   // ---- Land buying --------------------------------------------------------
   function landCost() { return 250 * Object.keys(state.ownedDistricts).length; }
   function buyLand(cx, cy) {
@@ -655,7 +730,7 @@
   // ---- Input --------------------------------------------------------------
   function setupInput() {
     let dragging = false, moved = false, lx = 0, ly = 0;
-    canvas.addEventListener("mousedown", (e) => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; });
+    canvas.addEventListener("mousedown", (e) => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; closeStatInfo(); });
     window.addEventListener("mouseup", (e) => {
       if (dragging && !moved) {
         const rect = canvas.getBoundingClientRect();
@@ -679,7 +754,7 @@
       if (e.key === "ArrowLeft") R.pan(st, 0); else if (e.key === "ArrowRight") R.pan(-st, 0);
       else if (e.key === "ArrowUp") R.pan(0, st); else if (e.key === "ArrowDown") R.pan(0, -st);
       else if (e.key === " ") { e.preventDefault(); setSpeed(speedIndex === 0 ? 1 : 0); }
-      else if (e.key === "Escape") { selectedType = null; closeInspect(); document.querySelectorAll(".tool").forEach((b) => b.classList.remove("active")); }
+      else if (e.key === "Escape") { selectedType = null; closeInspect(); closeStatInfo(); document.querySelectorAll(".tool").forEach((b) => b.classList.remove("active")); }
     });
   }
 
@@ -693,6 +768,12 @@
     buildToolbar(); setupInput();
     const sc = $("speed");
     C.SPEEDS.forEach((sp, i) => { const b = document.createElement("button"); b.className = "speedbtn"; b.textContent = sp.label; b.onclick = () => setSpeed(i); sc.appendChild(b); });
+    // make each top-bar stat clickable to explain it + give tips
+    document.querySelectorAll("#hud .chip").forEach((chip) => {
+      const valSpan = chip.querySelector("span:last-child");
+      if (valSpan && STAT_INFO[valSpan.id]) { chip.classList.add("clickable"); chip.onclick = () => openStatInfo(valSpan.id, chip); }
+    });
+
     $("btnHealth").onclick = togglePublicHealth;
     $("btnTax").onclick = openTax;
     $("btnWorld").onclick = openWorld;

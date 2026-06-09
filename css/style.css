@@ -276,3 +276,17 @@ aside h3:first-child { margin-top: 0; }
 .vip-breakdown { text-align: left; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px;
   font-size: 12px; background: #fbf8f0; border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
 .vip-invest { font-size: 14px; font-weight: 700; }
+
+/* clickable top-bar stats + info popup */
+#hud .chip.clickable { cursor: pointer; transition: background 0.1s; }
+#hud .chip.clickable:hover { background: rgba(255,255,255,0.22); }
+#statinfo { position: fixed; z-index: 38; width: 260px; background: #fffdf6;
+  border: 2px solid var(--gold); border-radius: 12px; padding: 11px 13px;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.30); display: none; }
+#statinfo.show { display: block; }
+.si-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 14px; color: #6b531a; }
+.si-now { font-size: 11px; color: #5a6b5c; margin: 2px 0 6px; }
+.si-what { font-size: 12px; line-height: 1.5; color: #3a473c; border-top: 1px dashed var(--panel-edge); padding-top: 6px; }
+.si-tipt { font-size: 11px; font-weight: 700; color: #5a6b5c; margin: 8px 0 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+.si-tips { margin: 0 0 0 16px; padding: 0; }
+.si-tips li { font-size: 12px; line-height: 1.5; color: #3a473c; margin-bottom: 3px; }
