@@ -290,3 +290,18 @@ aside h3:first-child { margin-top: 0; }
 .si-tipt { font-size: 11px; font-weight: 700; color: #5a6b5c; margin: 8px 0 3px; text-transform: uppercase; letter-spacing: 0.4px; }
 .si-tips { margin: 0 0 0 16px; padding: 0; }
 .si-tips li { font-size: 12px; line-height: 1.5; color: #3a473c; margin-bottom: 3px; }
+
+/* grouped build menu (accordion) */
+#toolbar { display: flex; flex-direction: column; gap: 4px; }
+.toolgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 4px; }
+.toolgrid .tool .tname { font-size: 9.5px; }
+.grouphead { display: flex; justify-content: space-between; align-items: center;
+  width: 100%; padding: 7px 10px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--panel-edge); background: #f4f1e6; font-size: 12px; font-weight: 700;
+  color: #4a5a4c; transition: background 0.1s; }
+.grouphead:hover { background: #ece7d4; }
+.grouphead.open { background: #fff8e6; border-color: var(--gold); }
+.grouphead .gchev { transition: transform 0.15s; font-size: 11px; color: #9a8f7a; }
+.grouphead.open .gchev { transform: rotate(90deg); }
+.groupbody { display: none; grid-template-columns: 1fr 1fr; gap: 5px; padding: 2px 0 6px; }
+.groupbody.open { display: grid; }

@@ -195,3 +195,18 @@ grows.
   power demand outstrips supply.
 - **Water 💧 and Power ⚡ join the demand bars**, and their coverage shows in the stats panel and
   feeds the VIP's inspection score.
+
+## 🏢 v8 — Housing tiers, grouped build menu, new tech & realism pass
+
+- **Five levels of housing**, each holding different numbers of people:
+  🏚️ **Low-End Housing** (10, dirt cheap) · 🏠 **House** (8) · 🏢 **Apartments** (24, dense tower) ·
+  🏙️ **Condos** (14 + happiness amenity) · 🏘️ **High-End Villas** (6, big happiness boost).
+- **Grouped build menu.** The toolbar is now organized into collapsible categories
+  (Infrastructure, Residential, Food & Shops, Industry & Tech, Raw Resources, Public Services,
+  Water & Power, Global Trade, Civic & Fun) with **no crossover** — each building lives in
+  exactly one group. Tools (Buy Land / Upgrade / Bulldoze) stay pinned on top.
+- **New tech products:** 💾 **Chip Fab** (high-value semiconductor exports), 🖥️ **Data Center**
+  (huge Investment value, drinks electricity), 🤖 **Robotics Lab** (top-tier output + human capital).
+- **Realism pass.** Buildings redrawn with more realistic detail — window grids, roof AC units,
+  balconies, pools, vents, server lights — and **upgrades now grow the structure itself**
+  (extra floors, wings, garages, penthouses) instead of showing **floating stars** (removed).

@@ -79,7 +79,7 @@
     if (def.love > 0) { state.loveTokens -= def.love; flashOmand(`Approved! ${def.icon} (−${def.love} 💞)`); }
     const b = { type: selectedType, cx, cy, level: 1 }; state.buildings.push(b); state.grid[cy][cx] = b;
     log(`Built ${def.name} ${def.icon}.`, "good");
-    if (selectedType === "house" && state.population === 0) { state.population = 6; log("6 founding settlers move into Omandistan! 🎉", "good"); }
+    if (def.housing && state.population === 0) { state.population = 6; log("6 founding settlers move into Omandistan! 🎉", "good"); }
     refreshStats();
   }
 
@@ -508,16 +508,35 @@
   // ---- Toolbar ------------------------------------------------------------
   function buildToolbar() {
     const bar = $("toolbar");
-    for (const key of C.BUILD_ORDER) {
-      const def = C.BUILDINGS[key];
-      const btn = document.createElement("button"); btn.className = "tool";
-      const resStr = def.res && Object.keys(def.res).length ? " " + Object.keys(def.res).map((r) => def.res[r] + C.RESOURCES[r].icon).join("") : "";
-      btn.innerHTML = `<span class="ticon">${def.icon}</span><span class="tname">${def.name}</span><span class="tcost" data-cost="${key}">$${def.cost}${def.love ? "·1💞" : ""}${resStr}</span>`;
-      btn.title = def.desc; btn.onclick = () => selectTool(key, btn); bar.appendChild(btn);
-    }
-    addSpecialTool(bar, "__buyland", "🏞️", "Buy Land", "expand");
-    addSpecialTool(bar, "__upgrade", "⬆️", "Upgrade", "level up");
-    addSpecialTool(bar, "__bulldoze", "⛏️", "Bulldoze", "free");
+    // Tools stay pinned at the top, always visible.
+    const toolRow = document.createElement("div"); toolRow.className = "toolgrid";
+    bar.appendChild(toolRow);
+    addSpecialTool(toolRow, "__buyland", "🏞️", "Buy Land", "expand");
+    addSpecialTool(toolRow, "__upgrade", "⬆️", "Upgrade", "level up");
+    addSpecialTool(toolRow, "__bulldoze", "⛏️", "Bulldoze", "free");
+    // Collapsible category groups (accordion — one open at a time).
+    C.BUILD_GROUPS.forEach((group, gi) => {
+      const head = document.createElement("button");
+      head.className = "grouphead";
+      head.innerHTML = `<span>${group.icon} ${group.name}</span><span class="gchev">▸</span>`;
+      const body = document.createElement("div");
+      body.className = "groupbody";
+      for (const key of group.items) {
+        const def = C.BUILDINGS[key];
+        const btn = document.createElement("button"); btn.className = "tool";
+        const resStr = def.res && Object.keys(def.res).length ? " " + Object.keys(def.res).map((r) => def.res[r] + C.RESOURCES[r].icon).join("") : "";
+        btn.innerHTML = `<span class="ticon">${def.icon}</span><span class="tname">${def.name}</span><span class="tcost" data-cost="${key}">$${def.cost}${def.love ? "·1💞" : ""}${resStr}</span>`;
+        btn.title = def.desc; btn.onclick = () => selectTool(key, btn); body.appendChild(btn);
+      }
+      head.onclick = () => {
+        const wasOpen = body.classList.contains("open");
+        document.querySelectorAll(".groupbody").forEach((g) => g.classList.remove("open"));
+        document.querySelectorAll(".grouphead").forEach((h) => h.classList.remove("open"));
+        if (!wasOpen) { body.classList.add("open"); head.classList.add("open"); }
+      };
+      if (gi === 0) { body.classList.add("open"); head.classList.add("open"); }  // start with Infrastructure open
+      bar.appendChild(head); bar.appendChild(body);
+    });
   }
   function addSpecialTool(bar, key, icon, name, cost) {
     const b = document.createElement("button"); b.className = "tool special";

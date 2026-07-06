@@ -150,12 +150,103 @@ window.Render = (function () {
   }
   const DRAW = {
     road() {},
-    house(p, def, cx, cy) {
+    house(p, def, cx, cy, lv) {
       box(p, 0.22, 0.22, 0.78, 0.78, 0, 0.75, shade(def.color, jit(cx, cy)));
       windowsV1(p, 0.78, [0.4, 0.6], 0.25, 0.5, "#fff4cf");
       poly([project(p, 0.46, 0.78, 0), project(p, 0.54, 0.78, 0), project(p, 0.54, 0.78, 0.35), project(p, 0.46, 0.78, 0.35)], "#8a5a2a");
       pyramid(p, 0.18, 0.18, 0.82, 0.82, 0.75, 0.42, "#b5503f");
       box(p, 0.3, 0.3, 0.38, 0.38, 0.75, 1.2, "#9a5a3a");
+      if (lv >= 2) {                                        // garage + dormer window
+        box(p, 0.78, 0.45, 1.0, 0.78, 0, 0.4, shade(def.color, -0.06));
+        pyramid(p, 0.76, 0.43, 1.02, 0.8, 0.4, 0.18, "#a04838");
+        windowsV1(p, 0.78, [0.5], 0.85, 1.0, "#fff4cf");
+      }
+      if (lv >= 3) {                                        // second wing + hedge
+        box(p, 0.05, 0.22, 0.22, 0.6, 0, 0.6, shade(def.color, 0.05));
+        pyramid(p, 0.03, 0.2, 0.24, 0.62, 0.6, 0.3, "#b5503f");
+        box(p, 0.08, 0.82, 0.92, 0.9, 0, 0.14, "#4e8a4e");
+      }
+    },
+    lowres(p, def, cx, cy, lv) {
+      // worn concrete block: flat roof, water tank, small windows
+      box(p, 0.18, 0.2, 0.82, 0.8, 0, 0.7, shade(def.color, jit(cx, cy) - 0.04));
+      box(p, 0.18, 0.2, 0.82, 0.8, 0.7, 0.76, shade(def.color, -0.2));
+      windowsV1(p, 0.8, [0.3, 0.5, 0.7], 0.15, 0.32, "#d8d2bc");
+      windowsV1(p, 0.8, [0.3, 0.5, 0.7], 0.42, 0.59, "#d8d2bc");
+      box(p, 0.6, 0.3, 0.74, 0.44, 0.76, 0.98, "#8a8478");            // water tank
+      if (lv >= 2) { box(p, 0.18, 0.2, 0.82, 0.8, 0.76, 1.1, shade(def.color, 0.02)); windowsV1(p, 0.8, [0.3, 0.5, 0.7], 0.84, 1.02, "#d8d2bc"); }
+      if (lv >= 3) box(p, 0.26, 0.55, 0.4, 0.69, 1.1, 1.3, "#8a8478");
+    },
+    apartment(p, def, cx, cy, lv) {
+      // residential slab: window grid on both faces, roof AC units
+      const floors = 3 + lv;
+      const h = 0.38 * floors;
+      box(p, 0.2, 0.24, 0.8, 0.76, 0, h, shade(def.color, jit(cx, cy)));
+      for (let f = 0; f < floors; f++) {
+        const z0 = 0.12 + f * 0.38, z1 = z0 + 0.2;
+        windowsV1(p, 0.76, [0.32, 0.5, 0.68], z0, z1, (cx + f) % 4 ? "#fdf2c8" : "#9fb4c4");
+      }
+      box(p, 0.2, 0.24, 0.8, 0.76, h, h + 0.07, shade(def.color, -0.22));
+      box(p, 0.3, 0.34, 0.44, 0.46, h + 0.07, h + 0.2, "#9aa0a8");     // roof AC
+      box(p, 0.55, 0.34, 0.69, 0.46, h + 0.07, h + 0.2, "#9aa0a8");
+      poly([project(p, 0.42, 0.76, 0), project(p, 0.58, 0.76, 0), project(p, 0.58, 0.76, 0.3), project(p, 0.42, 0.76, 0.3)], "#5a5f66"); // lobby door
+    },
+    condo(p, def, cx, cy, lv) {
+      // glass mid-rise with balcony bands
+      const h = 0.9 + lv * 0.25;
+      box(p, 0.22, 0.26, 0.78, 0.74, 0, h, "#8fb6d4");
+      for (let z = 0.2; z < h - 0.1; z += 0.3) {
+        box(p, 0.2, 0.72, 0.8, 0.78, z, z + 0.05, "#e8eef2");          // balcony band
+      }
+      box(p, 0.22, 0.26, 0.78, 0.74, h, h + 0.08, "#5a7f9c");
+      tree(p, 0.12, 0.85);
+      if (lv >= 3) { box(p, 0.34, 0.36, 0.66, 0.64, h + 0.08, h + 0.4, "#a8c8de"); }  // penthouse
+    },
+    highend(p, def, cx, cy, lv) {
+      // luxury villa: wide low house, pool, lawn & trees
+      diamond(cx, cy, "#79b968", "#5aa04e");                            // manicured lawn
+      box(p, 0.12, 0.15, 0.6, 0.55, 0, 0.55, shade(def.color, jit(cx, cy)));
+      pyramid(p, 0.09, 0.12, 0.63, 0.58, 0.55, 0.28, "#8a6f4a");
+      windowsV1(p, 0.55, [0.25, 0.45], 0.18, 0.42, "#fdf2c8");
+      // pool
+      poly([project(p, 0.66, 0.62, 0.01), project(p, 0.92, 0.62, 0.01), project(p, 0.92, 0.88, 0.01), project(p, 0.66, 0.88, 0.01)], "#4aa8d8", "#e8e2d0");
+      tree(p, 0.2, 0.8); if (lv >= 2) tree(p, 0.85, 0.25);
+      if (lv >= 2) { box(p, 0.62, 0.15, 0.9, 0.4, 0, 0.45, shade(def.color, 0.05)); pyramid(p, 0.6, 0.13, 0.92, 0.42, 0.45, 0.22, "#8a6f4a"); } // guest house
+      if (lv >= 3) { box(p, 0.1, 0.6, 0.3, 0.9, 0, 0.35, "#e8e0cc"); pyramid(p, 0.08, 0.58, 0.32, 0.92, 0.35, 0.16, "#8a6f4a"); }
+    },
+    chipfab(p, def, cx, cy, lv) {
+      // clean-room hall: bright white, roof vent rows, blue glass band
+      box(p, 0.12, 0.2, 0.88, 0.8, 0, 0.6, "#eef0f2");
+      box(p, 0.12, 0.74, 0.88, 0.8, 0.28, 0.44, "#7fb0d8");            // glass band
+      box(p, 0.12, 0.2, 0.88, 0.8, 0.6, 0.68, "#c8ccd4");
+      for (let i = 0; i < 3 + lv; i++) box(p, 0.2 + i * 0.14, 0.3, 0.3 + i * 0.14, 0.42, 0.68, 0.84, "#aab2bc");  // vent row
+      if (lv >= 2) box(p, 0.3, 0.55, 0.7, 0.72, 0.68, 0.95, "#e2e6ea");
+      if (lv >= 3) box(p, 0.76, 0.24, 0.86, 0.34, 0.68, 1.3, "#98a0aa");
+    },
+    datacenter(p, def, cx, cy, lv) {
+      // low dark server hall, roof AC rows, status lights on the face
+      box(p, 0.1, 0.25, 0.9, 0.78, 0, 0.5, shade(def.color, jit(cx, cy)));
+      box(p, 0.1, 0.25, 0.9, 0.78, 0.5, 0.56, "#2e333e");
+      for (let i = 0; i < 4 + lv; i++) box(p, 0.16 + i * 0.13, 0.34, 0.25 + i * 0.13, 0.46, 0.56, 0.7, "#6a7280"); // AC units
+      // status lights
+      for (let i = 0; i < 6; i++) {
+        const q = project(p, 0.2 + i * 0.11, 0.78, 0.25);
+        ctx.fillStyle = i % 3 ? "#4ade80" : "#38bdf8"; ctx.fillRect(q.x - 1, q.y - 1, 2, 2);
+      }
+      if (lv >= 2) box(p, 0.1, 0.25, 0.9, 0.78, 0.56, 0.94, shade(def.color, 0.06));
+      if (lv >= 3) { box(p, 0.4, 0.4, 0.6, 0.6, 0.94, 1.2, "#3c4250"); }
+    },
+    robotics(p, def, cx, cy, lv) {
+      // research lab: body + glass band + dome + antenna
+      box(p, 0.16, 0.2, 0.84, 0.8, 0, 0.75, shade(def.color, jit(cx, cy)));
+      box(p, 0.16, 0.74, 0.84, 0.8, 0.3, 0.55, "#c9d2f0");             // glass band
+      const dc = project(p, 0.42, 0.42, 0.75);
+      ctx.fillStyle = "#dde2f2"; ctx.beginPath(); ctx.arc(dc.x, dc.y - 4, TW * 0.13, Math.PI, 0); ctx.fill();
+      box(p, 0.7, 0.28, 0.74, 0.32, 0.75, 1.35 + lv * 0.15, "#8a90a0"); // antenna mast
+      const a = project(p, 0.72, 0.3, 1.38 + lv * 0.15);
+      ctx.fillStyle = "#e05a5a"; ctx.beginPath(); ctx.arc(a.x, a.y, 2.5, 0, 7); ctx.fill();
+      if (lv >= 2) { box(p, 0.16, 0.2, 0.5, 0.5, 0.75, 1.1, shade(def.color, 0.08)); }
+      if (lv >= 3) { const d2 = project(p, 0.65, 0.6, 0.75); ctx.fillStyle = "#dde2f2"; ctx.beginPath(); ctx.arc(d2.x, d2.y - 3, TW * 0.09, Math.PI, 0); ctx.fill(); }
     },
     farm(p, def, cx, cy, lv) {
       farmlandTile(cx, cy);
@@ -169,7 +260,6 @@ window.Render = (function () {
     clothing(p, d, x, y, lv) { shopBox(p, d, x, y, "#b65aa0", lv); },
     restaurant(p, d, x, y, lv) {
       shopBox(p, d, x, y, "#e0894a", lv);
-      const s = project(p, 0.5, 0.4, lv >= 2 ? 1.5 : 0.9); ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.fillText("🍔", s.x, s.y);
     },
     tech(p, def, cx, cy, lv) {
       box(p, 0.18, 0.2, 0.82, 0.8, 0, 0.8, shade(def.color, jit(cx, cy)));
@@ -192,7 +282,6 @@ window.Render = (function () {
       box(p, 0.14, 0.82, 0.86, 0.9, 0.7, 0.78, "#e8efe9");                 // pediment base
       pyramid(p, 0.14, 0.16, 0.86, 0.84, 0.78, 0.3, "#cfe0d3");
       for (const u of [0.24, 0.4, 0.56, 0.72]) box(p, u - 0.02, 0.82, u + 0.02, 0.86, 0, 0.7, "#eef4ef"); // columns
-      const s = project(p, 0.5, 0.5, 0.9); ctx.fillStyle = "#caa446"; ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("$", s.x, s.y);
     },
     lumber(p, def, cx, cy, lv) {
       box(p, 0.18, 0.5, 0.5, 0.84, 0, 0.42, "#8a6a40"); pyramid(p, 0.15, 0.47, 0.53, 0.87, 0.42, 0.22, "#5e4a30");
@@ -214,7 +303,6 @@ window.Render = (function () {
       box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.4, shade(def.color, jit(cx, cy)));
       box(p, 0.6, 0.24, 0.74, 0.38, 0.4, 1.2, "#8a9098");   // pump tower
       box(p, 0.24, 0.6, 0.46, 0.82, 0, 0.55, "#7a7f88");    // tanks
-      const s = project(p, 0.67, 0.3, 1.3); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("🔥", s.x, s.y);
     },
     hospital(p, def, cx, cy) {
       box(p, 0.18, 0.18, 0.82, 0.82, 0, 1.0, "#f3f5f7"); box(p, 0.18, 0.18, 0.82, 0.82, 1.0, 1.08, "#d96a6a");
@@ -253,14 +341,12 @@ window.Render = (function () {
       // two cylindrical-ish water tanks
       box(p, 0.56, 0.18, 0.74, 0.36, 0, 0.55, "#7fc0e6"); pyramid(p, 0.54, 0.16, 0.76, 0.38, 0.55, 0.14, "#5a9ec8");
       box(p, 0.56, 0.46, 0.74, 0.64, 0, 0.5, "#7fc0e6"); pyramid(p, 0.54, 0.44, 0.76, 0.66, 0.5, 0.13, "#5a9ec8");
-      const s = project(p, 0.32, 0.68, 0.5); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("💧", s.x, s.y);
     },
     powerplant(p, def, cx, cy) {
       box(p, 0.14, 0.22, 0.84, 0.82, 0, 0.7, shade(def.color, jit(cx, cy)));
       box(p, 0.58, 0.26, 0.7, 0.38, 0.7, 1.4, "#55585e"); box(p, 0.72, 0.26, 0.84, 0.38, 0.7, 1.25, "#55585e");
       const s = project(p, 0.64, 0.32, 1.45); ctx.fillStyle = "rgba(120,120,120,0.8)";
       ctx.beginPath(); ctx.arc(s.x, s.y, 7, 0, 7); ctx.arc(s.x + 6, s.y - 4, 5, 0, 7); ctx.fill();
-      const b = project(p, 0.3, 0.55, 0.75); ctx.fillStyle = "#f2d24a"; ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("⚡", b.x, b.y);
     },
     solar(p, def, cx, cy) {
       box(p, 0.05, 0.05, 0.95, 0.95, 0, 0.05, "#3a4a5a");                        // dark field
@@ -287,7 +373,6 @@ window.Render = (function () {
       pyramid(p, 0.56, 0.2, 0.86, 0.5, 0.95, -0.18, "#c2cab8");                    // slight inward cap
       const s = project(p, 0.71, 0.35, 1.0); ctx.fillStyle = "rgba(240,240,240,0.85)";
       ctx.beginPath(); ctx.arc(s.x, s.y, 9, 0, 7); ctx.arc(s.x + 7, s.y - 6, 6, 0, 7); ctx.fill();
-      const a = project(p, 0.28, 0.72, 0.7); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.fillText("☢️", a.x, a.y);
     },
     powerline(p, def, cx, cy) {
       // lattice pylon: two legs + crossarms + a top
@@ -310,7 +395,6 @@ window.Render = (function () {
       box(p, 0.2, 0.2, 0.8, 0.8, 0, 0.62, shade(def.color, jit(cx, cy)));
       box(p, 0.18, 0.2, 0.82, 0.96, 0.5, 0.66, "#4a2e5c");                 // marquee overhang
       windowsV1(p, 0.96, [0.3, 0.42, 0.54, 0.66], 0.5, 0.64, "#ffe27a");   // marquee bulbs
-      const s = project(p, 0.5, 0.4, 1.02); ctx.font = "14px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🎬", s.x, s.y);
     },
     stadium(p, def, cx, cy) {
       diamond(cx, cy, "#6aae6a", "#4e9d5b");
@@ -322,7 +406,6 @@ window.Render = (function () {
       ctx.fillStyle = "#5fa85f";
       ctx.beginPath(); ctx.ellipse(c.x, c.y, TW * 0.26, TH * 0.42, 0, 0, 7); ctx.fill();    // pitch
       ctx.strokeStyle = "#eef6ee"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(c.x, c.y - TH * 0.42); ctx.lineTo(c.x, c.y + TH * 0.42); ctx.stroke();
-      const s = project(p, 0.5, 0.5, 0.9); ctx.font = "12px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏟️", s.x, s.y);
     },
     themepark(p, def, cx, cy) {
       diamond(cx, cy, "#7bbf6e", "#4e9d5b");
@@ -339,7 +422,6 @@ window.Render = (function () {
       // striped circus tent
       box(p, 0.55, 0.52, 0.82, 0.8, 0, 0.3, "#e0894a");
       pyramid(p, 0.53, 0.5, 0.84, 0.82, 0.3, 0.32, "#e85d5d");
-      const s = project(p, 0.7, 0.18, 0.7); ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🎢", s.x, s.y);
     },
   };
 
@@ -472,7 +554,7 @@ window.Render = (function () {
             hScale = 1 + (lv - 1) * 0.30; bodyTint = (lv - 1) * 0.05;
             DRAW[b.type](tileToScreen(cx, cy), C.BUILDINGS[b.type], cx, cy, lv);
             hScale = 1; bodyTint = 0;
-            if (lv > 1) { goldRing(cx, cy, lv); levelBadge(cx, cy, C.BUILDINGS[b.type], lv); }
+            // upgrades now show through the structure itself (no stars/rings)
           }
         }
       }

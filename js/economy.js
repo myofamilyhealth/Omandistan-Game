@@ -27,20 +27,26 @@ window.Economy = (function () {
   // Monthly resource consumption (operating inputs) — creates real demand for
   // wood/oil/gas so "whatever is in demand should be produced/built".
   const CONSUME = {
-    house: { wood: 0.02 }, grocery: { wood: 0.02 }, clothing: { wood: 0.02 },
+    house: { wood: 0.02 }, lowres: { wood: 0.02 }, apartment: { wood: 0.05 },
+    condo: { wood: 0.04, gas: 0.1 }, highend: { wood: 0.04, gas: 0.15 },
+    chipfab: { gas: 0.25, oil: 0.1 }, robotics: { oil: 0.2 },
+    grocery: { wood: 0.02 }, clothing: { wood: 0.02 },
     restaurant: { gas: 0.25 }, factory: { oil: 0.5, wood: 0.05 }, tech: { oil: 0.25, gas: 0.1 },
     hospital: { gas: 0.3 }, university: { gas: 0.2 }, airport: { oil: 0.4 },
     cinema: { gas: 0.1 }, stadium: { gas: 0.15 }, themepark: { gas: 0.25, oil: 0.1 },
   };
   // Electricity used per building (besides per-capita demand from homes).
   const POWER_USE = {
-    factory: 7, tech: 5, hospital: 4, university: 3, airport: 6, bank: 2,
+    factory: 7, tech: 5, chipfab: 9, datacenter: 12, robotics: 6,
+    apartment: 2, condo: 2, highend: 2,
+    hospital: 4, university: 3, airport: 6, bank: 2,
     grocery: 2, clothing: 2, restaurant: 2, cinema: 2, stadium: 3, themepark: 5,
     lumber: 2, oilrig: 3, gasmine: 3, waterplant: 3,
   };
   // Water used per building (besides per-capita demand).
   const WATER_USE = {
-    farm: 4, restaurant: 1.5, hospital: 2, university: 1.5, themepark: 3, stadium: 2,
+    farm: 4, chipfab: 3, datacenter: 2, apartment: 1.5, condo: 1, highend: 1.5,
+    restaurant: 1.5, hospital: 2, university: 1.5, themepark: 3, stadium: 2,
     park: 1, grocery: 0.5, clothing: 0.5, powerplant: 1.5, nuclear: 3,
   };
 

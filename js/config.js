@@ -119,9 +119,21 @@ window.CONFIG = (function () {
       color: "#6b7280", category: "Infrastructure", noRoadNeeded: true,
       desc: "Roads carry traffic and EVERY building must touch one. Pre-approved (no love token)." },
 
-    house: { name: "Housing", icon: "🏠", cost: 55, love: 1, upkeep: 0.6, height: 0.7,
+    lowres: { name: "Low-End Housing", icon: "🏚️", cost: 35, love: 1, upkeep: 0.5, height: 0.55,
+      color: "#b09a72", category: "Residential", housing: 10, res: { wood: 3 },
+      desc: "Cheap, crowded blocks. Holds 10 people for very little money — but adds no charm." },
+    house: { name: "House", icon: "🏠", cost: 55, love: 1, upkeep: 0.6, height: 0.7,
       color: "#e8b04b", category: "Residential", housing: 8, res: { wood: 4 },
-      desc: "Homes for citizens (needs wood). Immigrants only arrive if there is housing." },
+      desc: "A standard family home for 8. The backbone of any neighbourhood." },
+    apartment: { name: "Apartments", icon: "🏢", cost: 170, love: 1, upkeep: 1.6, height: 1.15,
+      color: "#a8b0b8", category: "Residential", housing: 24, res: { wood: 10 },
+      desc: "A residential tower housing 24 people on one tile — dense and efficient." },
+    condo: { name: "Condos", icon: "🏙️", cost: 230, love: 1, upkeep: 1.9, height: 1.0,
+      color: "#7fa8c8", category: "Residential", housing: 14, amenity: 2, res: { wood: 9 },
+      desc: "Modern glass condominiums for 14, with shared amenities that lift happiness." },
+    highend: { name: "High-End Villas", icon: "🏘️", cost: 300, love: 1, upkeep: 2.2, height: 0.8,
+      color: "#e8d8b8", category: "Residential", housing: 6, amenity: 5, res: { wood: 12 },
+      desc: "Luxury estates for 6 wealthy residents. Few beds, big happiness boost." },
 
     farm: { name: "Farm", icon: "🌾", cost: 65, love: 1, upkeep: 0.8, height: 0.35,
       color: "#86b04a", category: "Perfect Competition", jobs: 4, foodOutput: 22,
@@ -149,6 +161,18 @@ window.CONFIG = (function () {
     bank: { name: "Bank", icon: "🏦", cost: 280, love: 1, upkeep: 2.4, height: 0.85,
       color: "#4a8c6a", category: "Investment (I)", jobs: 10, gdpc: "I", gdpVal: 70, res: { wood: 6 },
       desc: "Finance & capital. Boosts INVESTMENT (I) and the wider economy." },
+    chipfab: { name: "Chip Fab", icon: "💾", cost: 420, love: 1, upkeep: 3.8, height: 0.7,
+      color: "#c8ccd4", category: "Investment (I)", jobs: 18, industrialOutput: 40, gdpc: "I",
+      gdpVal: 80, pollution: 2, res: { wood: 8, gas: 3 },
+      desc: "Semiconductor fabrication — high-value tech exports. Power-hungry but clean-ish." },
+    datacenter: { name: "Data Center", icon: "🖥️", cost: 380, love: 1, upkeep: 3.2, height: 0.55,
+      color: "#3c4250", category: "Investment (I)", jobs: 8, industrialOutput: 18, gdpc: "I",
+      gdpVal: 90, res: { wood: 6 },
+      desc: "Rows of humming servers. Huge Investment (I) value with few jobs — but it drinks electricity." },
+    robotics: { name: "Robotics Lab", icon: "🤖", cost: 520, love: 1, upkeep: 4.2, height: 0.85,
+      color: "#8892c8", category: "Investment (I)", jobs: 14, industrialOutput: 46, gdpc: "I",
+      gdpVal: 95, humanCapital: 4, res: { wood: 10, oil: 4 },
+      desc: "Cutting-edge automation research. Top-tier output and a little human capital too." },
 
     hospital: { name: "Hospital", icon: "🏥", cost: 340, love: 1, upkeep: 3.5, height: 1.0,
       color: "#d96a6a", category: "Monopoly", jobs: 12, healthCapacity: 60, gdpc: "G",
@@ -221,16 +245,19 @@ window.CONFIG = (function () {
       desc: "The ultimate UTILITY: huge happiness boost & tourism, and major Consumption (C). Keeps citizens content." },
   };
 
-  const BUILD_ORDER = [
-    "road", "house", "farm",
-    "grocery", "clothing", "restaurant",
-    "tech", "factory", "bank",
-    "lumber", "oilrig", "gasmine",
-    "hospital", "school", "university",
-    "port", "airport",
-    "waterplant", "powerplant", "solar", "wind", "nuclear", "powerline",
-    "kindness", "park", "cinema", "stadium", "themepark",
+  // Build menu groups — collapsible categories; each building appears once.
+  const BUILD_GROUPS = [
+    { name: "Infrastructure", icon: "🛣️", items: ["road", "powerline"] },
+    { name: "Residential", icon: "🏠", items: ["lowres", "house", "apartment", "condo", "highend"] },
+    { name: "Food & Shops", icon: "🛒", items: ["farm", "grocery", "clothing", "restaurant"] },
+    { name: "Industry & Tech", icon: "🏭", items: ["factory", "tech", "chipfab", "datacenter", "robotics", "bank"] },
+    { name: "Raw Resources", icon: "⛏️", items: ["lumber", "oilrig", "gasmine"] },
+    { name: "Public Services", icon: "🏥", items: ["hospital", "school", "university"] },
+    { name: "Water & Power", icon: "⚡", items: ["waterplant", "powerplant", "solar", "wind", "nuclear"] },
+    { name: "Global Trade", icon: "🌍", items: ["port", "airport"] },
+    { name: "Civic & Fun", icon: "🎢", items: ["kindness", "park", "cinema", "stadium", "themepark"] },
   ];
+  const BUILD_ORDER = BUILD_GROUPS.flatMap((g) => g.items);
 
   // ---- Building upgrades --------------------------------------------------
   // Every building can be upgraded. Each level multiplies its output/capacity
@@ -331,5 +358,5 @@ window.CONFIG = (function () {
   ];
 
   return { MAP, CASTLE, VAULT, START, RESOURCES, DIFFICULTY, DIFF_ORDER, ECON, TAX, UPGRADE, VIP,
-           BUILDINGS, BUILD_ORDER, COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
+           BUILDINGS, BUILD_ORDER, BUILD_GROUPS, COUNTRIES, EVENTS, SPEEDS, TUTORIAL };
 })();
