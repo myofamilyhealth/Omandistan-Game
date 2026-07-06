@@ -24,6 +24,7 @@
     trade: { deals: [] },
     countryPPC: {},
     diff: C.DIFFICULTY.normal,   // economic difficulty (chosen at start)
+    autoKindness: false,         // auto-accept kindness aid requests (no sim pause)
     stats: null,
   };
   for (const k in C.COUNTRIES) state.countryPPC[k] = C.COUNTRIES[k].ppc;
@@ -397,24 +398,44 @@
 
   // ---- Events -------------------------------------------------------------
   let eventOpen = false;
+  function acceptKindness(ev, auto) {
+    if (state.treasury < ev.costMoney) {
+      log(`${auto ? "🔁 Auto-accept skipped (" + ev.title + "): " : ""}not enough money to help right now.`, "warn");
+      return;
+    }
+    state.treasury -= ev.costMoney; state.loveTokens += ev.reward;
+    state.happiness = Math.min(100, state.happiness + ev.happiness);
+    log(`${auto ? "🔁 Auto-accepted: " + ev.title + " —" : "Act of kindness!"} −${money(ev.costMoney)}, +${ev.reward} 💞, +${ev.happiness} happiness.`, "good");
+    flashOmand("Such kindness! 💛");
+  }
+  function setAutoKindness(on) {
+    state.autoKindness = on;
+    const b = $("btnAutoLove");
+    if (b) { b.textContent = on ? "💞 Kindness Aid: Auto-accept (ON)" : "💞 Kindness Aid: Ask me each time"; b.classList.toggle("on", on); }
+    log(on ? "Kindness requests are now accepted automatically — same rate & effects, no more pausing. 🔁"
+           : "Kindness requests will pause the game and ask you each time.", "info");
+  }
   function maybeEvent() {
     if (eventOpen || state.population < 8) return;
-    if (Math.random() < 0.16) openEvent(C.EVENTS[(Math.random() * C.EVENTS.length) | 0]);
+    if (Math.random() < 0.16) {
+      const ev = C.EVENTS[(Math.random() * C.EVENTS.length) | 0];
+      // Auto mode fires at the exact same rate with the same effects,
+      // it just resolves instantly instead of pausing the simulation.
+      if (state.autoKindness) acceptKindness(ev, true);
+      else openEvent(ev);
+    }
   }
   function openEvent(ev) {
     eventOpen = true; setSpeed(0);
     const m = $("modal");
     m.innerHTML = `<div class="card"><h2>💞 ${ev.title}</h2><p>${ev.text}</p>
       <p class="cost">Cost: ${money(ev.costMoney)} · Reward: +${ev.reward} 💞 · +${ev.happiness} happiness</p>
-      <div class="row"><button id="evYes" class="btn primary">${ev.yes}</button><button id="evNo" class="btn">${ev.no}</button></div></div>`;
+      <div class="row"><button id="evYes" class="btn primary">${ev.yes}</button><button id="evNo" class="btn">${ev.no}</button></div>
+      <button id="evAuto" class="tutskip">🔁 Always accept automatically (don't pause the game again)</button></div>`;
     m.classList.add("show");
-    $("evYes").onclick = () => {
-      if (state.treasury < ev.costMoney) log("Not enough money to help right now.", "warn");
-      else { state.treasury -= ev.costMoney; state.loveTokens += ev.reward; state.happiness = Math.min(100, state.happiness + ev.happiness);
-        log(`Act of kindness! +${ev.reward} 💞, +${ev.happiness} happiness.`, "good"); flashOmand("Such kindness! 💛"); }
-      closeEvent();
-    };
+    $("evYes").onclick = () => { acceptKindness(ev, false); closeEvent(); };
     $("evNo").onclick = () => { log("You declined to help.", ""); closeEvent(); };
+    $("evAuto").onclick = () => { setAutoKindness(true); acceptKindness(ev, false); closeEvent(); refreshStats(); };
   }
   function closeEvent() { $("modal").classList.remove("show"); eventOpen = false; setSpeed(1); }
 
@@ -811,6 +832,7 @@
     });
 
     $("btnHealth").onclick = togglePublicHealth;
+    $("btnAutoLove").onclick = () => setAutoKindness(!state.autoKindness);
     $("btnTax").onclick = openTax;
     $("btnWorld").onclick = openWorld;
     $("btnHelp").onclick = () => openTutorial(0);
