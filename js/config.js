@@ -44,7 +44,7 @@ window.CONFIG = (function () {
     population: 0,
     happiness: 72,
     monthsPerTick: 1,
-    resources: { wood: 80, oil: 36, gas: 36 },   // you need more than money!
+    resources: { wood: 80, oil: 36, gas: 52 },   // you need more than money!
     ownedDistrict: "1,1",                          // start owning the centre area
   };
 
@@ -60,15 +60,15 @@ window.CONFIG = (function () {
   const DIFFICULTY = {
     easy:   { key: "easy",   label: "Easy",   emoji: "🌱",
       blurb: "Generous money, light upkeep, gentle pollution, eager immigrants. Great for learning the ropes.",
-      treasury: 4200, love: 20, resources: { wood: 120, oil: 60, gas: 60 },
+      treasury: 4200, love: 20, resources: { wood: 120, oil: 60, gas: 85 },
       income: 1.35, upkeep: 0.70, pollution: 0.6, immigration: 1.3 },
     normal: { key: "normal", label: "Normal", emoji: "⚖️",
       blurb: "A balanced challenge — the intended Omandistan experience.",
-      treasury: 2600, love: 16, resources: { wood: 80, oil: 36, gas: 36 },
+      treasury: 2600, love: 16, resources: { wood: 80, oil: 36, gas: 52 },
       income: 1.0, upkeep: 1.0, pollution: 1.0, immigration: 1.0 },
     hard:   { key: "hard",   label: "Hard",   emoji: "🔥",
       blurb: "Tight budgets, costly upkeep, harsh pollution, slow growth. For seasoned economists.",
-      treasury: 1700, love: 12, resources: { wood: 60, oil: 26, gas: 26 },
+      treasury: 1700, love: 12, resources: { wood: 60, oil: 26, gas: 40 },
       income: 0.78, upkeep: 1.30, pollution: 1.45, immigration: 0.82 },
   };
   const DIFF_ORDER = ["easy", "normal", "hard"];
@@ -140,7 +140,7 @@ window.CONFIG = (function () {
 
     tech: { name: "Tech Park", icon: "💻", cost: 300, love: 1, upkeep: 3.2, height: 0.8,
       color: "#5566cc", category: "Investment (I)", jobs: 16, industrialOutput: 26, gdpc: "I",
-      gdpVal: 60, pollution: 1.5, res: { wood: 8, gas: 4 },
+      gdpVal: 60, pollution: 1.5, res: { wood: 8, gas: 3 },
       desc: "Innovation & capital goods. Adds to INVESTMENT (I), highly exportable. A little pollution." },
     factory: { name: "Factory", icon: "🏭", cost: 240, love: 1, upkeep: 3.2, height: 0.9,
       color: "#b08d57", category: "Investment (I)", jobs: 16, industrialOutput: 32, gdpc: "I",
@@ -152,7 +152,7 @@ window.CONFIG = (function () {
 
     hospital: { name: "Hospital", icon: "🏥", cost: 340, love: 1, upkeep: 3.5, height: 1.0,
       color: "#d96a6a", category: "Monopoly", jobs: 12, healthCapacity: 60, gdpc: "G",
-      gdpVal: 50, res: { wood: 10, gas: 4 },
+      gdpVal: 50, res: { wood: 10, gas: 3 },
       desc: "Healthcare is a MONOPOLY (high price, fewer served) unless the Omands decree a Public Option (→ Government, G)." },
     school: { name: "School", icon: "🏫", cost: 150, love: 1, upkeep: 1.4, height: 0.6,
       color: "#d98a4a", category: "Human Capital", jobs: 6, humanCapital: 8, amenity: 2, gdpc: "G",
@@ -160,7 +160,7 @@ window.CONFIG = (function () {
       desc: "Builds HUMAN CAPITAL → productivity → outward PPC. Public spending (G)." },
     university: { name: "University", icon: "🎓", cost: 420, love: 1, upkeep: 3, height: 0.95,
       color: "#9a6cb0", category: "Human Capital", jobs: 14, humanCapital: 22, amenity: 3, gdpc: "G",
-      gdpVal: 55, res: { wood: 14, gas: 4 },
+      gdpVal: 55, res: { wood: 14, gas: 3 },
       desc: "Advanced human capital — the engine of long-run growth. Public spending (G)." },
 
     lumber: { name: "Lumber Camp", icon: "🪓", cost: 90, love: 1, upkeep: 1, height: 0.4,
@@ -169,8 +169,8 @@ window.CONFIG = (function () {
     oilrig: { name: "Oil Derrick", icon: "🛢️", cost: 160, love: 1, upkeep: 2, height: 0.7,
       color: "#3a3a44", category: "Resources", jobs: 8, produces: { oil: 2.6 }, gdpc: "I", gdpVal: 35, pollution: 4, res: { wood: 4 },
       desc: "Pumps 🛢️ OIL each month. Oil powers factories and trade — but it pollutes." },
-    gasmine: { name: "Gas Mine", icon: "⛏️", cost: 150, love: 1, upkeep: 1.9, height: 0.5,
-      color: "#6a6f78", category: "Resources", jobs: 8, produces: { gas: 2.6 }, gdpc: "I", gdpVal: 32, pollution: 3, res: { wood: 4 },
+    gasmine: { name: "Gas Mine", icon: "⛏️", cost: 110, love: 1, upkeep: 1.4, height: 0.5,
+      color: "#6a6f78", category: "Resources", jobs: 8, produces: { gas: 4.2 }, gdpc: "I", gdpVal: 32, pollution: 2, res: { wood: 3 },
       desc: "Extracts 🔥 GAS each month. Used by hospitals, restaurants & universities. Pollutes a little." },
 
     port: { name: "Seaport", icon: "🚢", cost: 300, love: 1, upkeep: 2.2, height: 0.5,
@@ -179,7 +179,7 @@ window.CONFIG = (function () {
       desc: "UNLOCKS global trade by sea and powers NET EXPORTS (Xn). Must be built on the coast." },
     airport: { name: "Airport", icon: "✈️", cost: 560, love: 1, upkeep: 5.5, height: 0.65,
       color: "#8a98a6", category: "Global Trade (X)", jobs: 20, tradeCapacity: 75, gdpc: "X",
-      tourism: true, unlocksTrade: true, pollution: 3, res: { wood: 16, oil: 10, gas: 6 },
+      tourism: true, unlocksTrade: true, pollution: 3, res: { wood: 16, oil: 10, gas: 4 },
       desc: "High-capacity trade + TOURISM income. Unlocks global trade and boosts Net Exports (Xn)." },
 
     kindness: { name: "Kindness Center", icon: "💞", cost: 85, love: 0, upkeep: 0.6, height: 0.55,
@@ -191,7 +191,7 @@ window.CONFIG = (function () {
       color: "#4a9ad0", category: "Water", jobs: 8, waterCapacity: 80, gdpc: "G", gdpVal: 20, res: { wood: 8 },
       desc: "Treats water and pipes it UNDERGROUND across the country. Everyone needs water!" },
     powerplant: { name: "Power Plant", icon: "⚡", cost: 300, love: 1, upkeep: 3.5, height: 0.8,
-      color: "#6a6f78", category: "Power", jobs: 12, powerCapacity: 60, pollution: 7, gdpc: "I", gdpVal: 30, res: { wood: 8, gas: 4 },
+      color: "#6a6f78", category: "Power", jobs: 12, powerCapacity: 60, pollution: 7, gdpc: "I", gdpVal: 30, res: { wood: 8, gas: 3 },
       desc: "Cheap fossil-fuel electricity — but it POLLUTES heavily. Cleaner options exist." },
     solar: { name: "Solar Field", icon: "☀️", cost: 340, love: 1, upkeep: 2, height: 0.18,
       color: "#3a5a8c", category: "Power", jobs: 5, powerCapacity: 40, gdpc: "I", gdpVal: 25, res: { wood: 6 },
@@ -200,7 +200,7 @@ window.CONFIG = (function () {
       color: "#eef3f6", category: "Power", jobs: 3, powerCapacity: 22, gdpc: "I", gdpVal: 15, res: { wood: 5 },
       desc: "CLEAN, quiet wind power. Moderate output, no pollution." },
     nuclear: { name: "Nuclear Plant", icon: "☢️", cost: 900, love: 2, upkeep: 8, height: 1.0,
-      color: "#cdd6c8", category: "Power", jobs: 25, powerCapacity: 180, unrest: 6, gdpc: "I", gdpVal: 70, res: { wood: 18, gas: 8 },
+      color: "#cdd6c8", category: "Power", jobs: 25, powerCapacity: 180, unrest: 6, gdpc: "I", gdpVal: 70, res: { wood: 18, gas: 6 },
       desc: "ENORMOUS clean-air power, but very costly — and some citizens fear it (a little unrest)." },
     powerline: { name: "Power Lines", icon: "🗼", cost: 8, love: 0, upkeep: 0.1, height: 0.9,
       color: "#9aa0a8", category: "Utilities", noRoadNeeded: true, gridBonus: 2, res: {},

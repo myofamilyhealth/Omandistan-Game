@@ -18,7 +18,7 @@
     resources: Object.assign({}, C.START.resources),
     buildings: [], grid: [],
     ownedDistricts: { [C.START.ownedDistrict]: true },
-    month: 0, lastPriceIndex: 0,
+    month: 0, lastPriceIndex: 0, priceLevel: 1,
     policies: { publicHealth: false, tax: { rate: C.ECON.taxBase, mode: "flat", id: "auto", auto: true } },
     tariffs: { elliott: 0, wardmania: 0, cindara: 0, technova: 0 },
     trade: { deals: [] },
@@ -53,6 +53,9 @@
     return out;
   }
 
+  // Nominal (inflation-adjusted) cost of a building right now.
+  function buildCost(def) { return Math.round(def.cost * state.priceLevel); }
+
   function tryPlace(cx, cy) {
     if (!selectedType) return;
     if (cx === C.CASTLE.cx && cy === C.CASTLE.cy) { log("That's the royal castle — the Omands live there! 🏰", "warn"); return; }
@@ -64,13 +67,14 @@
       log(`A ${def.name} must be on the coast — place it next to the water. 🌊`, "warn"); return;
     }
     if (!def.noRoadNeeded && !adjRoad(cx, cy)) { log(`${def.name} must be built next to a 🛣️ Road. Lay roads first!`, "warn"); return; }
-    if (state.treasury < def.cost) { log(`Not enough money for a ${def.name} (${money(def.cost)}).`, "warn"); return; }
+    const bcost = buildCost(def);
+    if (state.treasury < bcost) { log(`Not enough money for a ${def.name} (${money(bcost)} at today's prices).`, "warn"); return; }
     const miss = missingRes(def);
     if (miss.length) { log(`Not enough resources for ${def.name}: need ${miss.join(", ")}. Build extractors!`, "warn"); return; }
     if (def.love > 0 && state.loveTokens < def.love) {
       log(`The Omands need ${def.love} 💞 to approve this. Do acts of kindness!`, "warn"); flashOmand("More kindness first, dear builder."); return;
     }
-    state.treasury -= def.cost;
+    state.treasury -= bcost;
     if (def.res) for (const r in def.res) state.resources[r] -= def.res[r];
     if (def.love > 0) { state.loveTokens -= def.love; flashOmand(`Approved! ${def.icon} (−${def.love} 💞)`); }
     const b = { type: selectedType, cx, cy, level: 1 }; state.buildings.push(b); state.grid[cy][cx] = b;
@@ -89,7 +93,7 @@
   function upgradeCost(def, toLevel) {
     const U = C.UPGRADE, res = {};
     if (def.res) for (const r in def.res) res[r] = Math.ceil(def.res[r] * U.costRes[toLevel - 1]);
-    return { money: Math.round(def.cost * U.costMoney[toLevel - 1]), res, love: U.love };
+    return { money: Math.round(def.cost * U.costMoney[toLevel - 1] * state.priceLevel), res, love: U.love };
   }
   function upgrade(cx, cy) {
     const b = state.grid[cy] && state.grid[cy][cx];
@@ -246,7 +250,7 @@
   function closeStatInfo() { const el = $("statinfo"); if (el) el.classList.remove("show"); }
 
   // ---- Land buying --------------------------------------------------------
-  function landCost() { return 250 * Object.keys(state.ownedDistricts).length; }
+  function landCost() { return Math.round(250 * Object.keys(state.ownedDistricts).length * state.priceLevel); }
   function buyLand(cx, cy) {
     const d = C.MAP.districtOf(cx, cy);
     if (!d) { log("That's the sea — there's no land to buy there.", "warn"); return; }
@@ -276,6 +280,12 @@
     state.population = Math.max(0, state.population + s.popChange);
     state.happiness = s.happiness;
     state.lastPriceIndex = s.priceIndex;
+    // Inflation compounds into the price level: everything gets nominally
+    // more expensive when inflation is positive (and cheaper in deflation).
+    const infl = clamp(s.inflation, -0.04, 0.08);
+    const oldPL = state.priceLevel;
+    state.priceLevel = clamp(state.priceLevel * (1 + infl), 0.75, 3);
+    if (oldPL < 1.5 && state.priceLevel >= 1.5) log("📈 Inflation has driven prices 50% above baseline — building & trade cost much more!", "warn");
     // resources: extraction − consumption + trade flows
     for (const r in state.resources) state.resources[r] = Math.max(0, state.resources[r] + (s.resources.net[r] || 0));
     // The Omands run countercyclical fiscal policy (the "Fed"): ease the tax
@@ -454,6 +464,7 @@
       <div class="dgroup"><h4>🏛️ The Omand Fed</h4>
         <div>Tax: <b>${pct(s.tax.rate)} ${s.tax.mode}</b> ${s.tax.auto ? '<span class="hint">(auto)</span>' : '<span class="hint">(manual)</span>'} → ${money(s.tax.revenue)}/mo</div>
         <div>Stance: <b class="${s.tax.stance==='Expansionary'?'pos':s.tax.stance==='Contractionary'?'neg':''}">${s.tax.stance}</b> · Inflation ${(s.inflation*100).toFixed(1)}%</div>
+        <div>Price level (CPI): <b class="${state.priceLevel>1.25?'neg':state.priceLevel<0.95?'pos':''}">×${state.priceLevel.toFixed(2)}</b> <span class="hint">(scales building, trade & upkeep costs)</span></div>
       </div>
       <div class="dgroup"><h4>💧 Water & ⚡ Power</h4>
         <div>Water: <b class="${s.utilities.waterCoverage<0.95?'neg':'pos'}">${pct(s.utilities.waterCoverage)}</b> covered (${Math.round(s.utilities.waterSupply)}/${Math.round(s.utilities.waterDemand)})</div>
@@ -467,6 +478,12 @@
     const meter = $("happyfill");
     meter.style.width = Math.round(state.happiness) + "%";
     meter.style.background = state.happiness > 66 ? "#4e9d5b" : state.happiness > 40 ? "#d9a441" : "#cc5b5b";
+    // toolbar prices track the current price level (inflation)
+    document.querySelectorAll("[data-cost]").forEach((el) => {
+      const def = C.BUILDINGS[el.dataset.cost]; if (!def) return;
+      const resStr = def.res && Object.keys(def.res).length ? " " + Object.keys(def.res).map((r) => def.res[r] + C.RESOURCES[r].icon).join("") : "";
+      el.textContent = `$${buildCost(def)}${def.love ? "·1💞" : ""}${resStr}`;
+    });
     drawMinimap();
     renderDemand(s);
     if (inspect) renderInspect();   // keep the open inspector's numbers fresh
@@ -495,7 +512,7 @@
       const def = C.BUILDINGS[key];
       const btn = document.createElement("button"); btn.className = "tool";
       const resStr = def.res && Object.keys(def.res).length ? " " + Object.keys(def.res).map((r) => def.res[r] + C.RESOURCES[r].icon).join("") : "";
-      btn.innerHTML = `<span class="ticon">${def.icon}</span><span class="tname">${def.name}</span><span class="tcost">$${def.cost}${def.love ? "·1💞" : ""}${resStr}</span>`;
+      btn.innerHTML = `<span class="ticon">${def.icon}</span><span class="tname">${def.name}</span><span class="tcost" data-cost="${key}">$${def.cost}${def.love ? "·1💞" : ""}${resStr}</span>`;
       btn.title = def.desc; btn.onclick = () => selectTool(key, btn); bar.appendChild(btn);
     }
     addSpecialTool(bar, "__buyland", "🏞️", "Buy Land", "expand");

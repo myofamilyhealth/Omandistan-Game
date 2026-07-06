@@ -95,6 +95,9 @@ window.Economy = (function () {
   function tick(state) {
     const E = C.ECON;
     const D = state.diff || { income: 1, upkeep: 1, pollution: 1, immigration: 1 };  // difficulty
+    // Cumulative price level (CPI). Inflation compounds into it (game.js), and
+    // it scales every NOMINAL price: revenues, upkeep, trade, building costs.
+    const PL = state.priceLevel || 1;
     const pop = state.population;
     const t = tallyBuildings(state);
 
@@ -124,8 +127,8 @@ window.Economy = (function () {
     const foodPrice = clearingPrice(foodOut, foodD0, E.food.refPrice, E.food.elasticity);
     const foodConsumed = Math.min(foodOut, qd(foodD0, foodPrice, E.food.refPrice, E.food.elasticity));
     const foodAccess = foodD0 <= 0 ? 1 : clamp(foodConsumed / foodD0, 0, 1);
-    const farmRevenue = foodConsumed * foodPrice;
-    const farmProfit = farmRevenue - t.farms * C.BUILDINGS.farm.jobs * E.food.farmWage - t.farms * C.BUILDINGS.farm.upkeep;
+    const farmRevenue = foodConsumed * foodPrice * PL;
+    const farmProfit = farmRevenue - (t.farms * C.BUILDINGS.farm.jobs * E.food.farmWage + t.farms * C.BUILDINGS.farm.upkeep) * PL;
 
     // --- HEALTHCARE: monopoly (Consumption if private, Government if public) -
     const healthD0 = pop * E.health.perCapita;
@@ -136,8 +139,8 @@ window.Economy = (function () {
     const healthAccess = healthD0 <= 0 ? 1 : clamp(healthServed / healthD0, 0, 1);
     const healthCompQ = Math.min(healthCap, qd(healthD0, E.health.marginalCost, E.health.refPrice, E.health.elasticity));
     const healthDWL = healthRegulated ? 0 : Math.max(0, healthCompQ - healthServed);
-    const healthRevenue = healthServed * healthPrice;
-    const healthSubsidy = healthRegulated ? Math.max(0, (E.health.marginalCost - healthPrice) * healthServed) : 0;
+    const healthRevenue = healthServed * healthPrice * PL;
+    const healthSubsidy = healthRegulated ? Math.max(0, (E.health.marginalCost - healthPrice) * healthServed) * PL : 0;
 
     // --- RETAIL goods: elastic luxury (Consumption) ------------------------
     const goodsD0 = pop * E.goods.perCapita;
@@ -165,10 +168,10 @@ window.Economy = (function () {
       let inc = 0, cost = 0;
       if (supply > demand && capLeft > 0) {
         const x = Math.min(supply - demand, capLeft); capLeft -= x;
-        inc = x * E.trade.exportMargin; exportValue += x * unitVal;
+        inc = x * E.trade.exportMargin * PL; exportValue += x * unitVal * PL;
       } else if (supply < demand && capLeft > 0) {
         const m = Math.min(demand - supply, capLeft); capLeft -= m;
-        cost = m * E.trade.importPrice; importValue += m * unitVal;
+        cost = m * E.trade.importPrice * PL; importValue += m * unitVal * PL;
       }
       return inc - cost;
     }
@@ -186,35 +189,42 @@ window.Economy = (function () {
         if (haveGive < give.amount - 1e-6) { stalled.push(deal); continue; }
         // our side (give)
         if (give.item === "money") tradeMoney -= give.amount;
-        else { resDelta[give.item] -= give.amount; exportValue += give.amount * W.basePrice(give.item); }
+        else { resDelta[give.item] -= give.amount; exportValue += give.amount * W.basePrice(give.item) * PL; }
         // their side (get)
         if (get.item === "money") tradeMoney += get.amount;
         else {
           resDelta[get.item] += get.amount;
-          const iv = get.amount * W.basePrice(get.item);
+          const iv = get.amount * W.basePrice(get.item) * PL;
           importValue += iv;
           const tar = iv * tariff;                  // tariff revenue on imports
           tariffRevenue += tar; tradeMoney -= tar;  // importers pay it to the treasury
         }
       }
     }
-    const tourismIncome = t.airCapacity > 0 ? t.airCapacity * E.trade.airTourism * (state.happiness / 100) : 0;
+    const tourismIncome = t.airCapacity > 0 ? t.airCapacity * E.trade.airTourism * (state.happiness / 100) * PL : 0;
     const Xn = exportValue - importValue;
     const tradeTreasury = autoTradeMoney + tradeMoney + tariffRevenue + tourismIncome;
 
     // ======================================================================
     // GDP = C + I + G + Xn
     // ======================================================================
-    const entertainmentC = t.utility * 2.4 * productivity * activity;   // cinemas/stadiums/parks spending
-    const Cexp = farmRevenue + goodsSold * goodsPrice + (healthRegulated ? 0 : healthRevenue) + entertainmentC;
-    const Iexp = (t.gdpI * productivity) * activity + industrialOut * 0.6;
-    const Gexp = (t.gdpG * productivity) + (healthRegulated ? healthRevenue : 0) + healthSubsidy;
+    const entertainmentC = t.utility * 2.4 * productivity * activity * PL;   // cinemas/stadiums/parks spending
+    const Cexp = farmRevenue + goodsSold * goodsPrice * PL + (healthRegulated ? 0 : healthRevenue) + entertainmentC;
+    const Iexp = ((t.gdpI * productivity) * activity + industrialOut * 0.6) * PL;
+    const Gexp = (t.gdpG * productivity) * PL + (healthRegulated ? healthRevenue : 0) + healthSubsidy;
     const gdp = Math.max(0, Cexp + Iexp + Gexp + Xn);
 
-    const priceIndex = (foodPrice / E.food.refPrice) * 0.45
-                     + (healthPrice / E.health.refPrice) * 0.25
-                     + (goodsPrice / E.goods.refPrice) * 0.30;
-    const inflation = state.lastPriceIndex ? (priceIndex - state.lastPriceIndex) / state.lastPriceIndex : 0;
+    // Price index tracks the MARKET-CLEARED prices (food & goods) — the ones
+    // that genuinely respond to supply and demand. (Healthcare is policy-set.)
+    const priceIndex = (foodPrice / E.food.refPrice) * 0.6
+                     + (goodsPrice / E.goods.refPrice) * 0.4;
+    const priceChange = state.lastPriceIndex ? (priceIndex - state.lastPriceIndex) / state.lastPriceIndex : 0;
+    // DEMAND-PULL INFLATION: while real prices sit above baseline (shortages),
+    // the price level keeps climbing; a glut (prices below baseline) deflates.
+    // This is what compounds into the CPI that raises all nominal costs.
+    // Deadband: roughly-balanced markets (index 0.85–1.15) hold prices stable.
+    const priceDev = priceIndex > 1.15 ? priceIndex - 1.15 : priceIndex < 0.85 ? priceIndex - 0.85 : 0;
+    const inflation = clamp(priceDev * 0.045 + priceChange * 0.35, -0.025, 0.08);
 
     // --- HOUSING -----------------------------------------------------------
     const housing = t.housing;
@@ -233,7 +243,7 @@ window.Economy = (function () {
     const pollution = Math.max(0, pollutionGross - t.green * (P.greenPower / 5));
     const pollutionPerCapita = pop <= 0 ? 0 : pollution / pop;
     const pollutionPenalty = clamp(pollutionPerCapita * 10 * P.happinessScale * D.pollution, 0, P.perCapitaCap);
-    const cleanupCost = pollution * P.cleanupCost * D.pollution;   // costs the treasury to manage
+    const cleanupCost = pollution * P.cleanupCost * D.pollution * PL;   // costs the treasury to manage
 
     // ======================================================================
     // TAXES — the Omands act as the FED (countercyclical) unless on manual
@@ -311,7 +321,7 @@ window.Economy = (function () {
     ];
 
     // --- TREASURY (difficulty: income & upkeep multipliers, cleanup) -------
-    const upkeep = t.upkeep * D.upkeep;
+    const upkeep = t.upkeep * D.upkeep * PL;
     const netTreasury = (taxRevenue + tradeTreasury) * D.income - upkeep - healthSubsidy - cleanupCost;
 
     // resources net (production − consumption) folded into the delta for game.js
@@ -324,10 +334,10 @@ window.Economy = (function () {
     return {
       tally: t, productivity, humanCapital: t.humanCapital, hcUtil,
       resources: { production: t.produce, consumption: t.consume, delta: resDelta, net: resNet, stalled },
-      food: { price: foodPrice, supply: foodOut, demand: foodD0, sold: foodConsumed, access: foodAccess, farmProfit },
-      health: { price: healthPrice, served: healthServed, demand: healthD0, access: healthAccess,
+      food: { price: foodPrice * PL, supply: foodOut, demand: foodD0, sold: foodConsumed, access: foodAccess, farmProfit },
+      health: { price: healthPrice * PL, served: healthServed, demand: healthD0, access: healthAccess,
                 regulated: healthRegulated, dwl: healthDWL, subsidy: healthSubsidy },
-      goods: { price: goodsPrice, supply: retailOut, sold: goodsSold, demand: goodsD0 },
+      goods: { price: goodsPrice * PL, supply: retailOut, sold: goodsSold, demand: goodsD0 },
       gdpParts: { C: Cexp, I: Iexp, G: Gexp, X: Xn }, gdp,
       trade: { unlocked: tradeUnlocked, capacity: t.tradeCapacity, exportValue, importValue,
                tourismIncome, tariffRevenue, net: tradeTreasury, Xn },
@@ -337,7 +347,7 @@ window.Economy = (function () {
       pollution: { level: pollution, gross: pollutionGross, perCapita: pollutionPerCapita, penalty: pollutionPenalty, cleanup: cleanupCost },
       utilities: { powerSupply, powerDemand, powerCoverage, waterSupply, waterDemand, waterCoverage, infraFactor },
       unrest, utility: t.utility, demand,
-      priceIndex, inflation, housing, housingFree, housingRatio, housingDemand, wantToJoin,
+      priceIndex, inflation, priceLevel: PL, housing, housingFree, housingRatio, housingDemand, wantToJoin,
       happiness, popChange,
       treasury: { tax: taxRevenue * D.income, upkeep: upkeep, subsidy: healthSubsidy, cleanup: cleanupCost, trade: tradeTreasury * D.income, net: netTreasury },
       lovePerTick: t.lovePerTick,
